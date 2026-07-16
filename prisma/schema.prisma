@@ -1,0 +1,424 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ROLE_ADMIN
+  ROLE_HR
+  ROLE_MANAGER
+  ROLE_EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  PROBATION
+  NOTICE_PERIOD
+  RESIGNED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  HALF_DAY
+  LEAVE
+  ABSENT
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  PENDING_HR
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum WorkRequestType {
+  WORK_FROM_HOME
+  ON_DUTY
+}
+
+enum WorkRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum RegularizationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CompOffRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model AppUser {
+  id             Int       @id @default(autoincrement())
+  username       String    @unique @db.VarChar(80)
+  passwordHash   String    @map("password_hash") @db.VarChar(100)
+  role           String    @db.VarChar(30)
+  enabled        Boolean   @default(true)
+  lastLoginAt    DateTime? @map("last_login_at")
+  lastLoginIp    String?   @map("last_login_ip") @db.VarChar(80)
+  lastUserAgent  String?   @map("last_user_agent") @db.VarChar(255)
+  mfaEnabled     Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret      String?   @map("mfa_secret") @db.VarChar(120)
+
+  employee               Employee?
+  decidedLeaves          LeaveRequest[]
+  decidedWorkReqs        WorkRequest[]
+  decidedRegularizations RegularizationRequest[]
+  decidedCompOffs        CompOffRequest[]
+  notifications          Notification[]
+  managerAssignments     ManagerAssignment[]
+  pushSubscriptions      PushSubscription[]
+  webAuthnCredentials    WebAuthnCredential[]
+
+  @@map("users")
+}
+
+model WebAuthnCredential {
+  id         String   @id @db.VarChar(255)
+  publicKey  Bytes
+  counter    Int      @default(0)
+  transports String?  @db.VarChar(255)
+  userId     Int      @map("user_id")
+  user       AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("webauthn_credentials")
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.VarChar(100)
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Shift {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.VarChar(100)
+  inTime    DateTime   @map("in_time") @db.Time
+  outTime   DateTime   @map("out_time") @db.Time
+  flexible  Boolean    @default(false)
+  employees Employee[]
+
+  @@map("shifts")
+}
+
+model CompanyRole {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique @db.VarChar(100)
+  photoUrl  String?    @map("photo_url") @db.VarChar(500)
+  employees Employee[]
+
+  @@map("company_roles")
+}
+
+model Employee {
+  id                     Int       @id @default(autoincrement())
+  employeeNumber         String    @unique @map("employee_number") @db.VarChar(40)
+  name                   String    @db.VarChar(120)
+  
+  userId                 Int       @unique @map("user_id")
+  user                   AppUser   @relation(fields: [userId], references: [id])
+
+  joinDate               DateTime? @map("join_date") @db.Date
+  profilePhotoUrl        String?   @map("profile_photo_url") @db.VarChar(500)
+  profilePhotoPublicId   String?   @map("profile_photo_public_id") @db.VarChar(255)
+  status                 EmployeeStatus @default(ACTIVE)
+  exitDate               DateTime? @map("exit_date") @db.Date
+  deviceFingerprint      String?   @map("device_fingerprint") @db.VarChar(100)
+
+  // References to other tables (to be added)
+  assignedOfficeLocationId Int? @map("assigned_office_location_id")
+  assignedOfficeLocation   OfficeLocation? @relation(fields: [assignedOfficeLocationId], references: [id])
+  departmentId             Int?            @map("department_id")
+  department               Department?     @relation(fields: [departmentId], references: [id])
+  companyRoleId            Int?            @map("company_role_id")
+  companyRole              CompanyRole?    @relation(fields: [companyRoleId], references: [id])
+  shiftId                  Int?            @map("shift_id")
+  shift                    Shift?          @relation(fields: [shiftId], references: [id])
+
+  attendanceEntries      AttendanceEntry[]
+  breakEntries           BreakEntry[]
+  leaveRequests          LeaveRequest[]
+  workRequests           WorkRequest[]
+  regularizationRequests RegularizationRequest[]
+  compOffRequests        CompOffRequest[]
+  leaveBalances          LeaveBalance[]
+  attendanceExceptions   AttendanceException[]
+  managerAssignments     ManagerAssignment[]
+
+  @@map("employees")
+}
+
+model AttendanceEntry {
+  id                    Int       @id @default(autoincrement())
+  
+  employeeId            Int       @map("employee_id")
+  employee              Employee  @relation(fields: [employeeId], references: [id])
+
+  date                  DateTime  @map("entry_date") @db.Date
+  inTime                DateTime? @map("in_time") @db.Time
+  outTime               DateTime? @map("out_time") @db.Time
+  workedMinutes         Int?      @map("worked_minutes")
+  lateMinutes           Int?      @map("late_minutes")
+  earlyLeaveMinutes     Int?      @map("early_leave_minutes")
+  overtimeMinutes       Int?      @map("overtime_minutes")
+  leaveReason           String?   @map("leave_reason") @db.VarChar(255)
+
+  checkInLatitude       Float?    @map("check_in_latitude")
+  checkInLongitude      Float?    @map("check_in_longitude")
+  checkInPhotoUrl       String?   @map("check_in_photo_url") @db.VarChar(500)
+  checkInFaceScore      Float?    @map("check_in_face_score")
+  checkInFaceVerified   Boolean?  @map("check_in_face_verified")
+
+  checkOutLatitude      Float?    @map("check_out_latitude")
+  checkOutLongitude     Float?    @map("check_out_longitude")
+  checkOutPhotoUrl      String?   @map("check_out_photo_url") @db.VarChar(500)
+  checkOutFaceScore     Float?    @map("check_out_face_score")
+  checkOutFaceVerified  Boolean?  @map("check_out_face_verified")
+
+  status                AttendanceStatus
+  timezoneCorrected     Boolean   @default(false) @map("timezone_corrected")
+  isHardwarePunch       Boolean   @default(false) @map("is_hardware_punch")
+
+  @@unique([employeeId, date], name: "uk_attendance_emp_date")
+  @@map("attendance_entries")
+}
+
+model BreakEntry {
+  id               Int             @id @default(autoincrement())
+  employeeId       Int             @map("employee_id")
+  employee         Employee        @relation(fields: [employeeId], references: [id])
+  date             DateTime        @db.Date
+  startTime        DateTime        @map("start_time") @db.Time
+  endTime          DateTime?       @map("end_time") @db.Time
+  durationMinutes  Int?            @map("duration_minutes")
+
+  @@map("break_entries")
+}
+
+model OfficeLocation {
+  id            Int      @id @default(autoincrement())
+  officeName    String?  @map("office_name") @db.VarChar(120)
+  latitude      Float
+  longitude     Float
+  radiusMeters  Float    @map("radius_meters")
+  active        Boolean  @default(true) @map("is_active")
+  officeIpAddress String? @map("office_ip_address") @db.VarChar(50)
+  updatedAt     DateTime @default(now()) @map("updated_at")
+  
+  employees     Employee[]
+  qrTokens      OfficeQrToken[]
+
+  @@map("office_locations")
+}
+
+model OfficeQrToken {
+  id               Int            @id @default(autoincrement())
+  token            String         @unique @db.VarChar(100)
+  officeLocationId Int            @map("office_location_id")
+  officeLocation   OfficeLocation @relation(fields: [officeLocationId], references: [id])
+  expiresAt        DateTime       @map("expires_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+
+  @@map("office_qr_tokens")
+}
+
+model LeaveRequest {
+  id              Int                @id @default(autoincrement())
+  employeeId      Int                @map("employee_id")
+  employee        Employee           @relation(fields: [employeeId], references: [id])
+  fromDate        DateTime           @map("from_date") @db.Date
+  toDate          DateTime           @map("to_date") @db.Date
+  reason          String             @db.VarChar(255)
+  leaveType       String?            @map("leave_type") @db.VarChar(40)
+  mailSubject     String?            @map("mail_subject") @db.VarChar(160)
+  mailMessage     String?            @map("mail_message") @db.VarChar(2000)
+  attachmentUrl   String?            @map("attachment_url") @db.VarChar(500)
+  attachmentName  String?            @map("attachment_name") @db.VarChar(180)
+  status          LeaveRequestStatus @default(PENDING)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  decidedAt       DateTime?          @map("decided_at")
+  decidedByUserId Int?               @map("decided_by_user_id")
+  decidedBy       AppUser?           @relation(fields: [decidedByUserId], references: [id])
+  hrRemarks       String?            @map("hr_remarks") @db.VarChar(255)
+
+  @@map("leave_requests")
+}
+
+model WorkRequest {
+  id              Int               @id @default(autoincrement())
+  employeeId      Int               @map("employee_id")
+  employee        Employee          @relation(fields: [employeeId], references: [id])
+  type            WorkRequestType
+  fromDate        DateTime          @map("from_date") @db.Date
+  toDate          DateTime          @map("to_date") @db.Date
+  reason          String            @db.VarChar(255)
+  status          WorkRequestStatus @default(PENDING)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  decidedAt       DateTime?         @map("decided_at")
+  decidedByUserId Int?              @map("decided_by_user_id")
+  decidedBy       AppUser?          @relation(fields: [decidedByUserId], references: [id])
+  remarks         String?           @db.VarChar(255)
+  attachmentUrl   String?           @map("attachment_url") @db.VarChar(500)
+  attachmentName  String?           @map("attachment_name") @db.VarChar(180)
+
+  @@map("work_requests")
+}
+
+model RegularizationRequest {
+  id               Int                  @id @default(autoincrement())
+  employeeId       Int                  @map("employee_id")
+  employee         Employee             @relation(fields: [employeeId], references: [id])
+  date             DateTime             @db.Date
+  requestedInTime  DateTime?            @map("requested_in_time") @db.Time
+  requestedOutTime DateTime?            @map("requested_out_time") @db.Time
+  reason           String               @db.VarChar(255)
+  status           RegularizationStatus @default(PENDING)
+  createdAt        DateTime             @default(now()) @map("created_at")
+  decidedAt        DateTime?            @map("decided_at")
+  decidedByUserId  Int?                 @map("decided_by_user_id")
+  decidedBy        AppUser?             @relation(fields: [decidedByUserId], references: [id])
+  hrRemarks        String?              @map("hr_remarks") @db.VarChar(255)
+  attachmentUrl    String?              @map("attachment_url") @db.VarChar(500)
+  attachmentName   String?              @map("attachment_name") @db.VarChar(180)
+
+  @@map("regularization_requests")
+}
+
+model CompOffRequest {
+  id              Int                  @id @default(autoincrement())
+  employeeId      Int                  @map("employee_id")
+  employee        Employee             @relation(fields: [employeeId], references: [id])
+  overtimeDate    DateTime             @map("overtime_date") @db.Date
+  requestedDate   DateTime             @map("requested_date") @db.Date
+  overtimeMinutes Int                  @map("overtime_minutes")
+  reason          String               @db.VarChar(255)
+  status          CompOffRequestStatus @default(PENDING)
+  createdAt       DateTime             @default(now()) @map("created_at")
+  decidedAt       DateTime?            @map("decided_at")
+  decidedByUserId Int?                 @map("decided_by_user_id")
+  decidedBy       AppUser?             @relation(fields: [decidedByUserId], references: [id])
+  hrRemarks       String?              @map("hr_remarks") @db.VarChar(255)
+  attachmentUrl   String?              @map("attachment_url") @db.VarChar(500)
+  attachmentName  String?              @map("attachment_name") @db.VarChar(180)
+
+  @@map("comp_off_requests")
+}
+
+model LeaveBalance {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int      @map("employee_id")
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  leaveType     String   @map("leave_type") @db.VarChar(40)
+  year          Int      @map("year_value")
+  allocatedDays Float    @map("allocated_days")
+  usedDays      Float    @map("used_days")
+
+  @@unique([employeeId, leaveType, year], name: "uk_leave_balance_emp_type_year")
+  @@map("leave_balances")
+}
+
+model AttendanceException {
+  id         Int       @id @default(autoincrement())
+  employeeId Int?      @map("employee_id")
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  type       String    @db.VarChar(60)
+  message    String    @db.VarChar(500)
+  resolved   Boolean   @default(false)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@map("attendance_exceptions")
+}
+
+model PayrollLock {
+  id        Int      @id @default(autoincrement())
+  month     String   @unique @map("month_value") @db.VarChar(7)
+  locked    Boolean  @default(false)
+  updatedAt DateTime @default(now()) @map("updated_at")
+  updatedBy String?  @map("updated_by") @db.VarChar(120)
+
+  @@map("payroll_locks")
+}
+
+model AttendanceSettings {
+  id                     Int      @id @default(autoincrement())
+  defaultInTime          DateTime @map("default_in_time") @db.Time
+  defaultOutTime         DateTime @map("default_out_time") @db.Time
+  weekendDays            String   @default("SUNDAY") @map("weekend_days") @db.VarChar(120)
+  fullDayMinutes         Int      @default(480) @map("full_day_minutes")
+  halfDayMinutes         Int      @default(240) @map("half_day_minutes")
+  lateGraceMinutes       Int      @default(10) @map("late_grace_minutes")
+  earlyLeaveGraceMinutes Int      @default(10) @map("early_leave_grace_minutes")
+  overtimeAfterMinutes   Int      @default(480) @map("overtime_after_minutes")
+  lateDeductionPerMinute Float    @default(1) @map("late_deduction_per_minute")
+  overtimePayPerHour     Float    @default(0) @map("overtime_pay_per_hour")
+  unpaidLeaveDailyRate   Float    @default(500) @map("unpaid_leave_daily_rate")
+  standardMonthlySalary  Float    @default(25000) @map("standard_monthly_salary")
+  requireQrForPunch      Boolean  @default(false) @map("require_qr_for_punch")
+  permanentOfficeQr      Boolean  @default(false) @map("permanent_office_qr")
+  qrTokenValidityMinutes Int      @default(10080) @map("qr_token_validity_minutes")
+
+  @@map("attendance_settings")
+}
+
+model Holiday {
+  id   Int      @id @default(autoincrement())
+  date DateTime @unique @map("holiday_date") @db.Date
+  name String   @db.VarChar(160)
+
+  @@map("holidays")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      AppUser  @relation(fields: [userId], references: [id])
+  title     String   @db.VarChar(160)
+  message   String   @db.VarChar(1000)
+  read      Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model ManagerAssignment {
+  id            Int      @id @default(autoincrement())
+  managerUserId Int      @map("manager_user_id")
+  manager       AppUser  @relation(fields: [managerUserId], references: [id])
+  employeeId    Int      @map("employee_id")
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([managerUserId, employeeId], name: "uk_manager_employee")
+  @@map("manager_assignments")
+}
+
+model PushSubscription {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  user       AppUser  @relation(fields: [userId], references: [id])
+  endpoint   String   @db.VarChar(500)
+  p256dh     String   @db.VarChar(200)
+  auth       String   @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, endpoint], name: "uk_push_sub_user_endpoint")
+  @@map("push_subscriptions")
+}
+
