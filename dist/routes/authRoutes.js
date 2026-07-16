@@ -7,4 +7,5 @@ const router = (0, express_1.Router)();
 router.post('/login', authController_1.login);
 router.post('/refresh', authController_1.refresh);
 router.get('/me', authMiddleware_1.requireAuth, authController_1.me);
+router.get('/debug-admin', authController_1.debugAdmin);
 exports.default = router;

@@ -48,7 +48,7 @@ export const login = async (req: Request, res: Response) => {
 
     // Record success
     const userAgent = req.headers['user-agent'];
-    await updateLastLogin(user.id, remoteAddress, userAgent);
+    updateLastLogin(user.id, remoteAddress, userAgent).catch((error) => console.error('Last login update failed:', error));
 
     // Generate tokens
     const accessToken = createAccessToken(user.username, user.role);
@@ -83,7 +83,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid input', details: (error as any).errors });
     }
     console.error('Login error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Login failed', detail: error?.message || 'Internal server error' });
   }
 };
 
@@ -124,4 +124,15 @@ export const me = async (req: AuthRequest, res: Response) => {
     username: req.user.username,
     role: req.user.role,
   });
+};
+
+export const debugAdmin = async (req: Request, res: Response) => {
+  try {
+    const adminCount = await prisma.appUser.count({ where: { role: 'ROLE_ADMIN' } });
+    const admin = await prisma.appUser.findFirst({ where: { role: 'ROLE_ADMIN' }, select: { id: true, username: true, role: true, enabled: true } });
+    return res.json({ ok: true, adminCount, admin });
+  } catch (error: any) {
+    console.error('Debug admin error:', error);
+    return res.status(500).json({ ok: false, error: error?.message || 'Debug failed' });
+  }
 };

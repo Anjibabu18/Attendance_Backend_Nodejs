@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.me = exports.refresh = exports.login = void 0;
+exports.debugAdmin = exports.me = exports.refresh = exports.login = void 0;
 const zod_1 = require("zod");
 const userService_1 = require("../services/userService");
 const jwt_1 = require("../utils/jwt");
@@ -39,7 +39,7 @@ const login = async (req, res) => {
         }
         // Record success
         const userAgent = req.headers['user-agent'];
-        await (0, userService_1.updateLastLogin)(user.id, remoteAddress, userAgent);
+        (0, userService_1.updateLastLogin)(user.id, remoteAddress, userAgent).catch((error) => console.error('Last login update failed:', error));
         // Generate tokens
         const accessToken = (0, jwt_1.createAccessToken)(user.username, user.role);
         const refreshToken = (0, jwt_1.createRefreshToken)(user.username, user.role);
@@ -72,7 +72,7 @@ const login = async (req, res) => {
             return res.status(400).json({ error: 'Invalid input', details: error.errors });
         }
         console.error('Login error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Login failed', detail: error?.message || 'Internal server error' });
     }
 };
 exports.login = login;
@@ -111,3 +111,15 @@ const me = async (req, res) => {
     });
 };
 exports.me = me;
+const debugAdmin = async (req, res) => {
+    try {
+        const adminCount = await prisma.appUser.count({ where: { role: 'ROLE_ADMIN' } });
+        const admin = await prisma.appUser.findFirst({ where: { role: 'ROLE_ADMIN' }, select: { id: true, username: true, role: true, enabled: true } });
+        return res.json({ ok: true, adminCount, admin });
+    }
+    catch (error) {
+        console.error('Debug admin error:', error);
+        return res.status(500).json({ ok: false, error: error?.message || 'Debug failed' });
+    }
+};
+exports.debugAdmin = debugAdmin;
