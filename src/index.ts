@@ -34,8 +34,26 @@ app.use(cors({
 }));
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', service: 'Attendance Node API', version: process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || 'local' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Node.js Backend is running' });
+});
+
+app.get('/api/version', (req, res) => {
+  res.json({
+    status: 'OK',
+    service: 'Attendance Node API',
+    commit: process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || null,
+    nodeEnv: process.env.NODE_ENV || null,
+    routes: {
+      adminManagers: '/api/admin/managers',
+      payrollLock: '/api/hr/payroll-lock?month=YYYY-MM',
+      officeQr: '/api/admin/production/qr',
+    },
+  });
 });
 
 // Test DB connection endpoint
