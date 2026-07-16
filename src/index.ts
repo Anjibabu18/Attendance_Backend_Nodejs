@@ -22,13 +22,21 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
   .map(origin => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+const isAllowedOrigin = (origin?: string) => {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/$/, '');
+  if (allowedOrigins.length === 0 || allowedOrigins.includes(normalized)) return true;
+  return /^https:\/\/attendance-two-smoky\.vercel\.app$/.test(normalized)
+    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(normalized);
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
-    callback(new Error('Not allowed by CORS'));
+    callback(new Error(`Not allowed by CORS: ${origin}`));
   },
   credentials: true,
 }));
