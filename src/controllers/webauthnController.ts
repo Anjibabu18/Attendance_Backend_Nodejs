@@ -6,7 +6,7 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
 import { PrismaClient } from '@prisma/client';
-import jwt from 'jsonwebtoken';
+import { createAccessToken, createRefreshToken } from '../utils/jwt';
 
 const prisma = new PrismaClient();
 
@@ -204,18 +204,15 @@ export const verifyAuthentication = async (req: Request, res: Response) => {
 
       delete userChallenges[user.id];
 
-      const secret = process.env.JWT_SECRET || 'fallback_secret';
-      const token = jwt.sign(
-        { userId: user.id, username: user.username, role: user.role, sub: user.username },
-        secret,
-        { expiresIn: '24h' }
-      );
+      const token = createAccessToken(user.username, user.role);
+      const refreshToken = createRefreshToken(user.username, user.role);
 
       res.json({
         token,
+        refreshToken,
         role: user.role,
         employeeId: user.employee?.id || null,
-        name: user.employee?.name || null,
+        name: user.employee?.name || user.username,
       });
     } else {
       res.status(400).json({ error: 'Biometric verification failed' });

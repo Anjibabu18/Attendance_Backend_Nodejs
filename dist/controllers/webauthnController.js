@@ -1,12 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAuthentication = exports.generateAuthentication = exports.verifyRegistration = exports.generateRegistration = void 0;
 const server_1 = require("@simplewebauthn/server");
 const client_1 = require("@prisma/client");
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const jwt_1 = require("../utils/jwt");
 const prisma = new client_1.PrismaClient();
 const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
 const normalizeOrigin = (value) => {
@@ -192,13 +189,14 @@ const verifyAuthentication = async (req, res) => {
                 data: { counter: authenticationInfo.newCounter },
             });
             delete userChallenges[user.id];
-            const secret = process.env.JWT_SECRET || 'fallback_secret';
-            const token = jsonwebtoken_1.default.sign({ userId: user.id, username: user.username, role: user.role, sub: user.username }, secret, { expiresIn: '24h' });
+            const token = (0, jwt_1.createAccessToken)(user.username, user.role);
+            const refreshToken = (0, jwt_1.createRefreshToken)(user.username, user.role);
             res.json({
                 token,
+                refreshToken,
                 role: user.role,
                 employeeId: user.employee?.id || null,
-                name: user.employee?.name || null,
+                name: user.employee?.name || user.username,
             });
         }
         else {
