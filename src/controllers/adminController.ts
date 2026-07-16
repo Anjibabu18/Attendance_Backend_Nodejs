@@ -80,20 +80,36 @@ import * as crypto from 'crypto';
 
 export const generateQr = async (req: AuthRequest, res: Response) => {
   try {
-    const { officeId } = req.body;
+    const officeId = Number(req.body.officeId ?? req.body.officeLocationId);
+    if (!Number.isInteger(officeId) || officeId <= 0) {
+      return res.status(400).json({ error: 'Select a valid office location before generating QR' });
+    }
+
+    const officeLocation = await prisma.officeLocation.findUnique({ where: { id: officeId } });
+    if (!officeLocation) {
+      return res.status(404).json({ error: 'Office location not found. Save office location first, then generate QR.' });
+    }
+
+    const settings = await prisma.attendanceSettings.findFirst();
+    const validityMinutes = settings?.permanentOfficeQr
+      ? 60 * 24 * 365 * 5
+      : settings?.qrTokenValidityMinutes ?? 10080;
     const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24 hours default
+    const expiresAt = new Date(Date.now() + validityMinutes * 60 * 1000);
     const qrToken = await prisma.officeQrToken.create({
       data: {
         token,
-        officeLocationId: parseInt(officeId),
+        officeLocationId: officeId,
         expiresAt
       },
       include: { officeLocation: true }
     });
     const resp = await qrResponse(qrToken);
     res.json(resp);
-  } catch (error: any) { res.status(400).json({ error: error.message }); }
+  } catch (error: any) {
+    console.error('QR generation failed', error);
+    res.status(500).json({ error: `QR generation failed: ${error.message}` });
+  }
 };
 
 export const getLatestQrToken = async (req: AuthRequest, res: Response) => {
