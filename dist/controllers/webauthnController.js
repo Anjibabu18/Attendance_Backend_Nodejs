@@ -8,15 +8,33 @@ const server_1 = require("@simplewebauthn/server");
 const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma = new client_1.PrismaClient();
-const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
-const ORIGIN = process.env.WEBAUTHN_ORIGIN || 'http://localhost:5173';
-const ALLOWED_ORIGINS = [
+const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
+const normalizeOrigin = (value) => {
+    if (!value)
+        return null;
+    try {
+        return new URL(value).origin;
+    }
+    catch {
+        return null;
+    }
+};
+const deriveRpId = () => {
+    if (process.env.WEBAUTHN_RP_ID)
+        return process.env.WEBAUTHN_RP_ID;
+    const origin = normalizeOrigin(process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || PRODUCTION_FRONTEND_URL);
+    return origin ? new URL(origin).hostname : 'localhost';
+};
+const RP_ID = deriveRpId();
+const ORIGIN = normalizeOrigin(process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || PRODUCTION_FRONTEND_URL) || 'http://localhost:5173';
+const ALLOWED_ORIGINS = Array.from(new Set([
     ORIGIN,
+    normalizeOrigin(process.env.FRONTEND_URL),
+    normalizeOrigin(PRODUCTION_FRONTEND_URL),
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000',
-    'https://attendance-two-smoky.vercel.app',
-];
+].filter(Boolean)));
 // In-memory challenge store (use Redis in production)
 const userChallenges = {};
 const generateRegistration = async (req, res) => {
