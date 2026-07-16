@@ -40,11 +40,11 @@ export const uploadProfilePhoto = async (req: AuthRequest, res: Response) => {
     await prisma.employee.update({
       where: { id: employee.id },
       data: {
-        profilePhotoUrl: result.secure_url,
-        profilePhotoPublicId: result.public_id,
+        profilePhotoUrl: upload.url,
+        profilePhotoPublicId: `employee-profile-${employee.id}`,
       },
     });
-    res.json({ url: result.secure_url });
+    res.json({ url: upload.url });
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 };
 

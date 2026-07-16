@@ -26,10 +26,10 @@ const biometricPunch = async (req, res) => {
         const emptyPhotoBuffer = Buffer.from('');
         let entry;
         if (punchType === 'IN') {
-            entry = await (0, attendancePunchService_1.checkIn)(employee, 0, 0, emptyPhotoBuffer, true);
+            entry = await (0, attendancePunchService_1.checkIn)(employee, 0, 0, emptyPhotoBuffer, null);
         }
         else if (punchType === 'OUT') {
-            entry = await (0, attendancePunchService_1.checkOut)(employee, 0, 0, emptyPhotoBuffer, true);
+            entry = await (0, attendancePunchService_1.checkOut)(employee, 0, 0, emptyPhotoBuffer, null);
         }
         else {
             return res.status(400).json({ error: 'Invalid punchType. Must be IN or OUT' });

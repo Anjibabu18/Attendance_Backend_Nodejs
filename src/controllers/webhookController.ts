@@ -32,9 +32,9 @@ export const biometricPunch = async (req: Req, res: Res) => {
     
     let entry;
     if (punchType === 'IN') {
-      entry = await checkIn(employee, 0, 0, emptyPhotoBuffer, true);
+      entry = await checkIn(employee, 0, 0, emptyPhotoBuffer, null, true);
     } else if (punchType === 'OUT') {
-      entry = await checkOut(employee, 0, 0, emptyPhotoBuffer, true);
+      entry = await checkOut(employee, 0, 0, emptyPhotoBuffer, null, true);
     } else {
       return res.status(400).json({ error: 'Invalid punchType. Must be IN or OUT' });
     }

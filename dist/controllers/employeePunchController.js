@@ -73,7 +73,15 @@ const postCheckIn = async (req, res) => {
         const deviceId = req.body.deviceId;
         const qrTokenStr = req.body.qrToken;
         const dailyCode = req.body.dailyCode;
-        const file = req.file; // multer populates this
+        const file = req.file;
+        const faceDescriptorStr = req.body.faceDescriptor;
+        let faceDescriptor = null;
+        if (faceDescriptorStr) {
+            try {
+                faceDescriptor = JSON.parse(faceDescriptorStr);
+            }
+            catch (e) { }
+        } // multer populates this
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
         // Hardcode requireQrForPunch to true to fulfill the Permanent QR requirement
         const requireQrForPunch = true;
@@ -108,7 +116,7 @@ const postCheckIn = async (req, res) => {
                 }
             }
         }
-        const entry = await (0, attendancePunchService_1.checkIn)(employee, latitude, longitude, file.buffer);
+        const entry = await (0, attendancePunchService_1.checkIn)(employee, latitude, longitude, file.buffer, faceDescriptor);
         res.json(entry);
     }
     catch (error) {
@@ -124,6 +132,14 @@ const postCheckOut = async (req, res) => {
         const qrTokenStr = req.body.qrToken;
         const dailyCode = req.body.dailyCode;
         const file = req.file;
+        const faceDescriptorStr = req.body.faceDescriptor;
+        let faceDescriptor = null;
+        if (faceDescriptorStr) {
+            try {
+                faceDescriptor = JSON.parse(faceDescriptorStr);
+            }
+            catch (e) { }
+        }
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
         // Hardcode requireQrForPunch to true to fulfill the Permanent QR requirement
         const requireQrForPunch = true;
@@ -158,7 +174,7 @@ const postCheckOut = async (req, res) => {
                 }
             }
         }
-        const entry = await (0, attendancePunchService_1.checkOut)(employee, latitude, longitude, file.buffer);
+        const entry = await (0, attendancePunchService_1.checkOut)(employee, latitude, longitude, file.buffer, faceDescriptor);
         res.json(entry);
     }
     catch (error) {

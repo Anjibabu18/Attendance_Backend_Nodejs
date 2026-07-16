@@ -138,6 +138,13 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
     const qrTokenStr = req.body.qrToken;
     const dailyCode = req.body.dailyCode;
     const file = req.file;
+    const faceDescriptorStr = req.body.faceDescriptor;
+    let faceDescriptor: number[] | null = null;
+    if (faceDescriptorStr) {
+      try {
+        faceDescriptor = JSON.parse(faceDescriptorStr);
+      } catch (e) {}
+    }
 
     await validateApprovedDevice(req.user!.username, deviceId);
 

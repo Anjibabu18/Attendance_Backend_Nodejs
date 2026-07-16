@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadCompOffAttachment = exports.createCompOff = exports.listCompOffs = exports.uploadWorkAttachment = exports.createWorkRequest = exports.listWorkRequests = exports.uploadRegularizationAttachment = exports.createRegularization = exports.listRegularizations = exports.uploadLeaveAttachment = exports.cancelLeaveRequest = exports.createLeaveRequest = exports.listLeaveRequests = exports.leaveBalances = exports.payslip = exports.attendanceReport = exports.attendanceExport = exports.attendanceSummary = exports.attendance = exports.uploadProfilePhoto = exports.profile = void 0;
+exports.uploadCompOffAttachment = exports.createCompOff = exports.listCompOffs = exports.uploadWorkAttachment = exports.createWorkRequest = exports.listWorkRequests = exports.uploadRegularizationAttachment = exports.createRegularization = exports.listRegularizations = exports.uploadLeaveAttachment = exports.cancelLeaveRequest = exports.createLeaveRequest = exports.listLeaveRequests = exports.leaveBalances = exports.payslip = exports.attendanceReport = exports.attendanceExport = exports.attendanceSummary = exports.attendance = exports.registerFace = exports.uploadProfilePhoto = exports.profile = void 0;
 const client_1 = require("@prisma/client");
 const employeeService_1 = require("../services/employeeService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
@@ -71,17 +71,36 @@ const uploadProfilePhoto = async (req, res) => {
             where: { id: employee.id },
             data: {
                 profilePhotoUrl: upload.url,
-                profilePhotoPublicId: upload.publicId,
-            }
+                profilePhotoPublicId: `employee-profile-${employee.id}`,
+            },
         });
-        const updatedProfile = await (0, employeeService_1.getEmployeeProfile)(user.id);
-        res.json(updatedProfile);
+        res.json({ url: upload.url });
     }
-    catch (error) {
-        res.status(400).json({ error: error.message });
+    catch (e) {
+        res.status(400).json({ error: e.message });
     }
 };
 exports.uploadProfilePhoto = uploadProfilePhoto;
+const registerFace = async (req, res) => {
+    try {
+        const { descriptor } = req.body;
+        if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
+            res.status(400).json({ error: 'Invalid face descriptor' });
+            return;
+        }
+        const username = req.user.sub;
+        const employee = await getEmployee(username);
+        await prisma.employee.update({
+            where: { id: employee.id },
+            data: { faceDescriptor: JSON.stringify(descriptor) },
+        });
+        res.json({ success: true });
+    }
+    catch (e) {
+        res.status(400).json({ error: e.message });
+    }
+};
+exports.registerFace = registerFace;
 const attendance = async (req, res) => {
     try {
         const month = req.query.month;
