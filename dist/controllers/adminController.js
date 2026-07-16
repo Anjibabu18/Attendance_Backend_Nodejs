@@ -138,12 +138,16 @@ const generateQr = async (req, res) => {
         if (!officeLocation) {
             return res.status(404).json({ error: 'Office location not found. Save office location first, then generate QR.' });
         }
-        const settings = await prisma.attendanceSettings.findFirst();
-        const validityMinutes = settings?.permanentOfficeQr
-            ? 60 * 24 * 365 * 5
-            : settings?.qrTokenValidityMinutes ?? 10080;
+        const existing = await prisma.officeQrToken.findFirst({
+            where: { officeLocationId: officeId, expiresAt: { gt: new Date() } },
+            orderBy: { createdAt: 'asc' },
+            include: { officeLocation: true }
+        });
+        if (existing) {
+            return res.json(await (0, qrService_1.qrResponse)(existing));
+        }
         const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + validityMinutes * 60 * 1000);
+        const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10);
         const qrToken = await prisma.officeQrToken.create({
             data: {
                 token,

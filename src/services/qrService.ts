@@ -36,20 +36,6 @@ export const validateQr = async (token: string) => {
 };
 
 export const qrResponse = async (qrToken: any) => {
-  // Hardcoded to true to fulfill the permanent QR feature request
-  const permanent = true;
-  
-  let dailyCode = "";
-  let mode = "ROTATING_TOKEN";
-
-  if (permanent) {
-    mode = "FIXED_QR_DAILY_CODE";
-    const dateStr = new Date().toISOString().split('T')[0];
-    const hash = crypto.createHash('sha256').update(qrToken.token + dateStr).digest('hex');
-    // 4 digit code
-    dailyCode = String(parseInt(hash.substring(0, 6), 16) % 10000).padStart(4, '0');
-  }
-  
   return {
     valid: true,
     token: qrToken.token,
@@ -57,9 +43,9 @@ export const qrResponse = async (qrToken: any) => {
     officeName: qrToken.officeLocation.officeName,
     createdAt: qrToken.createdAt,
     expiresAt: qrToken.expiresAt,
-    printedQrExpiresAt: permanent ? new Date(Date.now() + 1000 * 60 * 60 * 24 * 365) : qrToken.expiresAt,
-    dailyCode,
-    mode
+    printedQrExpiresAt: qrToken.expiresAt,
+    dailyCode: '',
+    mode: 'PERMANENT_OFFICE_QR'
   };
 };
 
