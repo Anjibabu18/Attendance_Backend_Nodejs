@@ -76,7 +76,14 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
     const deviceId = req.body.deviceId;
     const qrTokenStr = req.body.qrToken;
     const dailyCode = req.body.dailyCode;
-    const file = req.file; // multer populates this
+    const file = req.file;
+    const faceDescriptorStr = req.body.faceDescriptor;
+    let faceDescriptor: number[] | null = null;
+    if (faceDescriptorStr) {
+      try {
+        faceDescriptor = JSON.parse(faceDescriptorStr);
+      } catch (e) {}
+    } // multer populates this
 
     await validateApprovedDevice(req.user!.username, deviceId);
 
@@ -116,7 +123,7 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkIn(employee, latitude, longitude, file.buffer);
+    const entry = await checkIn(employee, latitude, longitude, file.buffer, faceDescriptor);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -170,7 +177,7 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkOut(employee, latitude, longitude, file.buffer);
+    const entry = await checkOut(employee, latitude, longitude, file.buffer, faceDescriptor);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

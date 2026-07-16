@@ -56,7 +56,14 @@ const assertWithinAssignedOffice = async (employee: Employee, latitude: number, 
   }
 };
 
-export const checkIn = async (employee: Employee, latitude: number, longitude: number, photoBuffer?: Buffer, isHardware?: boolean) => {
+export const checkIn = async (
+  employee: Employee,
+  latitude: number,
+  longitude: number,
+  photoBuffer: Buffer | null,
+  faceDescriptor: number[] | null,
+  isHardware: boolean = false
+) => {
   if (!isHardware && (!photoBuffer || photoBuffer.length === 0)) {
     throw new Error('Selfie photo is required for punch');
   }
@@ -84,9 +91,9 @@ export const checkIn = async (employee: Employee, latitude: number, longitude: n
   let faceScore = null;
   let faceVerified = true; // Default true for hardware
 
-  if (!isHardware && photoBuffer) {
-    // Face Verification
-    const faceResult = await verifyFace(employee.profilePhotoUrl, photoBuffer);
+  if (!isHardware && photoBuffer && faceDescriptor) {
+    // Face Verification using Descriptor
+    const faceResult = await verifyFace(employee.faceDescriptor as any, faceDescriptor);
     if (!faceResult.verified) {
       throw new Error(`Face verification failed: ${faceResult.message}`);
     }
@@ -162,7 +169,14 @@ export const checkIn = async (employee: Employee, latitude: number, longitude: n
   return entry;
 };
 
-export const checkOut = async (employee: Employee, latitude: number, longitude: number, photoBuffer?: Buffer, isHardware?: boolean) => {
+export const checkOut = async (
+  employee: Employee,
+  latitude: number,
+  longitude: number,
+  photoBuffer: Buffer | null,
+  faceDescriptor: number[] | null,
+  isHardware: boolean = false
+) => {
   if (!isHardware && (!photoBuffer || photoBuffer.length === 0)) {
     throw new Error('Selfie photo is required for punch');
   }
@@ -192,9 +206,9 @@ export const checkOut = async (employee: Employee, latitude: number, longitude: 
   let faceScore = null;
   let faceVerified = true;
 
-  if (!isHardware && photoBuffer) {
-    // Face Verification
-    const faceResult = await verifyFace(employee.profilePhotoUrl, photoBuffer);
+  if (!isHardware && photoBuffer && faceDescriptor) {
+    // Face Verification using Descriptor
+    const faceResult = await verifyFace(employee.faceDescriptor as any, faceDescriptor);
     if (!faceResult.verified) {
       throw new Error(`Face verification failed: ${faceResult.message}`);
     }

@@ -141,6 +141,7 @@ model Employee {
   status                 EmployeeStatus @default(ACTIVE)
   exitDate               DateTime? @map("exit_date") @db.Date
   deviceFingerprint      String?   @map("device_fingerprint") @db.VarChar(100)
+  faceDescriptor         String?   @map("face_descriptor") @db.Text
 
   // References to other tables (to be added)
   assignedOfficeLocationId Int? @map("assigned_office_location_id")

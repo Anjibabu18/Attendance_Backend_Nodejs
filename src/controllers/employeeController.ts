@@ -40,16 +40,30 @@ export const uploadProfilePhoto = async (req: AuthRequest, res: Response) => {
     await prisma.employee.update({
       where: { id: employee.id },
       data: {
-        profilePhotoUrl: upload.url,
-        profilePhotoPublicId: upload.publicId,
-      }
+        profilePhotoUrl: result.secure_url,
+        profilePhotoPublicId: result.public_id,
+      },
     });
+    res.json({ url: result.secure_url });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
+};
 
-    const updatedProfile = await getEmployeeProfile(user.id);
-    res.json(updatedProfile);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
+export const registerFace = async (req: AuthRequest, res: Response) => {
+  try {
+    const { descriptor } = req.body;
+    if (!descriptor || !Array.isArray(descriptor) || descriptor.length !== 128) {
+      res.status(400).json({ error: 'Invalid face descriptor' });
+      return;
+    }
+    const username = (req as any).user.sub;
+    const employee = await getEmployee(username);
+
+    await prisma.employee.update({
+      where: { id: employee.id },
+      data: { faceDescriptor: JSON.stringify(descriptor) },
+    });
+    res.json({ success: true });
+  } catch (e: any) { res.status(400).json({ error: e.message }); }
 };
 
 export const attendance = async (req: AuthRequest, res: Response) => {
