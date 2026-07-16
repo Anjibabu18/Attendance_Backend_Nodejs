@@ -34,20 +34,33 @@ const ALLOWED_ORIGINS = Array.from(new Set([
 ].filter(Boolean)));
 // In-memory challenge store (use Redis in production)
 const userChallenges = {};
+const getAuthenticatedAppUser = async (req) => {
+    const authUser = req.user;
+    if (!authUser?.username)
+        return null;
+    return prisma.appUser.findUnique({
+        where: { username: String(authUser.username) },
+        include: { webAuthnCredentials: true },
+    });
+};
+const webAuthnErrorMessage = (error) => {
+    const message = String(error?.message || '');
+    if (error?.code === 'P2021' || message.includes('webauthn_credentials') || message.includes('WebAuthnCredential')) {
+        return 'Biometric database table is missing. Run the webauthn_credentials SQL table script in phpMyAdmin, then try again.';
+    }
+    return message || 'Biometric setup failed';
+};
 const generateRegistration = async (req, res) => {
     try {
-        const user = req.user;
+        const user = await getAuthenticatedAppUser(req);
         if (!user)
             return res.status(401).json({ error: 'Unauthorized' });
-        const userCredentials = await prisma.webAuthnCredential.findMany({
-            where: { userId: user.id },
-        });
         const options = await (0, server_1.generateRegistrationOptions)({
             rpName: 'WorkTrack Attendance',
             rpID: RP_ID,
             userName: user.username,
             attestationType: 'none',
-            excludeCredentials: userCredentials.map((cred) => ({
+            excludeCredentials: user.webAuthnCredentials.map((cred) => ({
                 id: cred.id,
                 transports: cred.transports ? cred.transports.split(',') : undefined,
             })),
@@ -61,13 +74,13 @@ const generateRegistration = async (req, res) => {
     }
     catch (error) {
         console.error('Registration generation error', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: webAuthnErrorMessage(error) });
     }
 };
 exports.generateRegistration = generateRegistration;
 const verifyRegistration = async (req, res) => {
     try {
-        const user = req.user;
+        const user = await getAuthenticatedAppUser(req);
         if (!user)
             return res.status(401).json({ error: 'Unauthorized' });
         const expectedChallenge = userChallenges[user.id];
@@ -112,7 +125,7 @@ const verifyRegistration = async (req, res) => {
     }
     catch (error) {
         console.error('Registration verification error', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: webAuthnErrorMessage(error) });
     }
 };
 exports.verifyRegistration = verifyRegistration;
