@@ -5,23 +5,26 @@ const prisma = new PrismaClient();
 
 // Run every day at 23:59
 export const startAttendanceCronJob = () => {
-  cron.schedule('59 23 * * *', async () => {
-    console.log('[Cron] Running daily attendance missing-checkout check...');
+  cron.schedule('0 5 * * *', async () => {
+    console.log('[Cron] Running daily attendance missing-checkout check (5 AM)...');
     try {
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
+      const istString = new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'});
+      const istDate = new Date(istString);
+      istDate.setDate(istDate.getDate() - 1);
+      
+      const targetDate = new Date(Date.UTC(istDate.getFullYear(), istDate.getMonth(), istDate.getDate()));
 
-      // Find all entries for today that have a check-in but no check-out
+      // Find all entries for targetDate that have a check-in but no check-out
       const entries = await prisma.attendanceEntry.findMany({
         where: {
-          date: today,
+          date: targetDate,
           inTime: { not: null },
           outTime: null,
         }
       });
 
       if (entries.length > 0) {
-        console.log(`[Cron] Found ${entries.length} employees who forgot to checkout. Marking as ABSENT.`);
+        console.log(`[Cron] Found ${entries.length} employees who forgot to checkout on ${targetDate.toISOString()}. Marking as ABSENT.`);
         
         for (const entry of entries) {
           await prisma.attendanceEntry.update({
@@ -34,20 +37,20 @@ export const startAttendanceCronJob = () => {
           });
         }
       } else {
-        console.log('[Cron] No missing checkouts found today.');
+        console.log('[Cron] No missing checkouts found for yesterday.');
       }
 
-      // Check if today is a working day (Not weekend or holiday)
+      // Check if targetDate is a working day (Not weekend or holiday)
       const settings = await prisma.attendanceSettings.findFirst();
       const weekendDays = (settings?.weekendDays || 'SUNDAY').split(',');
-      const dayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][today.getUTCDay()];
+      const dayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getUTCDay()];
       
-      const holiday = await prisma.holiday.findFirst({ where: { date: today } });
+      const holiday = await prisma.holiday.findFirst({ where: { date: targetDate } });
 
       if (!weekendDays.includes(dayName) && !holiday) {
-        // Find employees with NO attendance entry today
+        // Find employees with NO attendance entry yesterday
         const activeEmployees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
-        const allEntries = await prisma.attendanceEntry.findMany({ where: { date: today } });
+        const allEntries = await prisma.attendanceEntry.findMany({ where: { date: targetDate } });
         const presentIds = new Set(allEntries.map(e => e.employeeId));
 
         let absentCount = 0;
@@ -56,7 +59,7 @@ export const startAttendanceCronJob = () => {
             await prisma.attendanceEntry.create({
               data: {
                 employeeId: emp.id,
-                date: today,
+                date: targetDate,
                 status: AttendanceStatus.ABSENT,
                 leaveReason: 'Did not report to work',
                 workedMinutes: 0
@@ -65,12 +68,14 @@ export const startAttendanceCronJob = () => {
             absentCount++;
           }
         }
-        console.log(`[Cron] Created ${absentCount} ABSENT entries for employees who didn't punch in.`);
+        console.log(`[Cron] Created ${absentCount} ABSENT entries for employees who didn't punch in on ${targetDate.toISOString()}.`);
       }
 
     } catch (error) {
       console.error('[Cron] Error running missing-checkout job:', error);
     }
+  }, {
+    timezone: "Asia/Kolkata"
   });
   
   console.log('[Cron] Attendance missing-checkout job scheduled.');
