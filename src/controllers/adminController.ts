@@ -413,7 +413,7 @@ export const productionChecklist = async (req: AuthRequest, res: Response) => {
 };
 
 export const listOfficeLocations = async (req: AuthRequest, res: Response) => {
-  try { res.json(await prisma.officeLocation.findMany({ orderBy: { id: 'asc' } })); }
+  try { res.json(await prisma.officeLocation.findMany({ where: { active: true }, orderBy: { id: 'asc' } })); }
   catch (error: any) { res.status(400).json({ error: error.message }); }
 };
 
