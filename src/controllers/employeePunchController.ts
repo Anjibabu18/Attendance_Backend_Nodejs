@@ -9,6 +9,24 @@ const prisma = new PrismaClient();
 const isMissingBreakTable = (error: any) =>
   error?.code === 'P2021' || String(error?.message || '').includes('break_entries') || String(error?.message || '').includes('does not exist');
 
+
+const assertQrBelongsToEmployeeOffice = (employee: any, qrData: any) => {
+  const qrOfficeId = qrData?.officeLocation?.id;
+  if (!qrOfficeId) throw new Error('QR office is missing');
+  if (qrData.officeLocation.active === false) throw new Error('QR office is inactive');
+  if (employee.assignedOfficeLocationId && employee.assignedOfficeLocationId !== qrOfficeId) {
+    throw new Error('QR does not belong to your assigned office');
+  }
+};
+
+const verifyInternalDailyQrCode = async (qrData: any) => {
+  const resp = await qrResponse(qrData);
+  if (!resp.dailyCode || resp.mode !== 'PERMANENT_OFFICE_QR_AUTO_CODE') {
+    throw new Error('Today QR code is not active');
+  }
+  return resp;
+};
+
 const currentEmployee = async (userId: number) => {
   const employee = await prisma.employee.findUnique({
     where: { userId },
@@ -75,7 +93,6 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
     const longitude = parseFloat(req.body.longitude);
     const deviceId = req.body.deviceId;
     const qrTokenStr = req.body.qrToken;
-    const dailyCode = req.body.dailyCode;
     const file = req.file;
     const faceDescriptorStr = req.body.faceDescriptor;
     let faceDescriptor: number[] | null = null;
@@ -87,20 +104,11 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
 
     await validateApprovedDevice(req.user!.username, deviceId);
 
-    // Hardcode requireQrForPunch to true to fulfill the Permanent QR requirement
-    const requireQrForPunch = true;
-    if (requireQrForPunch) {
-      if (!qrTokenStr) {
-        return res.status(400).json({ error: 'QR token is required for punch-in' });
-      }
-      const qrData = await validateQr(qrTokenStr);
-      const resp = await qrResponse(qrData);
-      if (resp.mode === "FIXED_QR_DAILY_CODE") {
-        if (!dailyCode || dailyCode !== resp.dailyCode) {
-          return res.status(400).json({ error: 'Invalid daily code' });
-        }
-      }
+    if (!qrTokenStr) {
+      return res.status(400).json({ error: 'QR token is required for punch-in' });
     }
+    const qrData = await validateQr(qrTokenStr);
+    await verifyInternalDailyQrCode(qrData);
 
     if (!file) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
@@ -109,6 +117,7 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const employee = await currentEmployee(user.id);
+    assertQrBelongsToEmployeeOffice(employee, qrData);
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({
@@ -136,7 +145,6 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
     const longitude = parseFloat(req.body.longitude);
     const deviceId = req.body.deviceId;
     const qrTokenStr = req.body.qrToken;
-    const dailyCode = req.body.dailyCode;
     const file = req.file;
     const faceDescriptorStr = req.body.faceDescriptor;
     let faceDescriptor: number[] | null = null;
@@ -148,20 +156,11 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
 
     await validateApprovedDevice(req.user!.username, deviceId);
 
-    // Hardcode requireQrForPunch to true to fulfill the Permanent QR requirement
-    const requireQrForPunch = true;
-    if (requireQrForPunch) {
-      if (!qrTokenStr) {
-        return res.status(400).json({ error: 'QR token is required for punch-out' });
-      }
-      const qrData = await validateQr(qrTokenStr);
-      const resp = await qrResponse(qrData);
-      if (resp.mode === "FIXED_QR_DAILY_CODE") {
-        if (!dailyCode || dailyCode !== resp.dailyCode) {
-          return res.status(400).json({ error: 'Invalid daily code' });
-        }
-      }
+    if (!qrTokenStr) {
+      return res.status(400).json({ error: 'QR token is required for punch-out' });
     }
+    const qrData = await validateQr(qrTokenStr);
+    await verifyInternalDailyQrCode(qrData);
 
     if (!file) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
@@ -170,6 +169,7 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const employee = await currentEmployee(user.id);
+    assertQrBelongsToEmployeeOffice(employee, qrData);
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({
@@ -305,5 +305,6 @@ export const endBreak = async (req: AuthRequest, res: Response) => {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 

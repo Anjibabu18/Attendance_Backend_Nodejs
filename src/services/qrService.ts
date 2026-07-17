@@ -2,6 +2,16 @@ import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+export const internalDailyCodeForQr = (token: string) => {
+  const digest = crypto
+    .createHash('sha256')
+    .update(`${token}:${todayKey()}:attendance-daily-code`)
+    .digest('hex');
+
+  return String(parseInt(digest.slice(0, 8), 16) % 10000).padStart(4, '0');
+};
 
 export const validateQr = async (token: string) => {
   let actualToken = token;
@@ -44,8 +54,8 @@ export const qrResponse = async (qrToken: any) => {
     createdAt: qrToken.createdAt,
     expiresAt: qrToken.expiresAt,
     printedQrExpiresAt: qrToken.expiresAt,
-    dailyCode: '',
-    mode: 'PERMANENT_OFFICE_QR'
+    dailyCode: internalDailyCodeForQr(qrToken.token),
+    mode: 'PERMANENT_OFFICE_QR_AUTO_CODE'
   };
 };
 
@@ -84,3 +94,4 @@ export const validateApprovedDevice = async (username: string, deviceId: string)
     throw new Error('This device is not approved for attendance punch');
   }
 };
+
