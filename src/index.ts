@@ -1,7 +1,8 @@
+import prisma from './prisma';
 import './config/env';
 import express from 'express';
 import cors from 'cors';
-import { PrismaClient } from '@prisma/client';
+
 import authRoutes from './routes/authRoutes';
 import employeeRoutes from './routes/employeeRoutes';
 import hrRoutes from './routes/hrRoutes';
@@ -14,7 +15,7 @@ import webhookRoutes from './routes/webhookRoutes';
 
 
 const app = express();
-const prisma = new PrismaClient();
+
 const PORT = process.env.PORT || 3000;
 
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')

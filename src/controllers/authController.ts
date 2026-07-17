@@ -1,11 +1,12 @@
+import prisma from '../prisma';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { findByUsername, updateLastLogin, verifyPassword } from '../services/userService';
 import { createAccessToken, createRefreshToken, verifyToken } from '../utils/jwt';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+
 
 const loginSchema = z.object({
   username: z.string().min(1),

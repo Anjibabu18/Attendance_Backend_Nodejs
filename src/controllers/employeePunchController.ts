@@ -1,10 +1,11 @@
+import prisma from '../prisma';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { checkIn, checkOut, evaluatePlace } from '../services/attendancePunchService';
 import { validateQr, qrResponse, deviceApproved, validateApprovedDevice } from '../services/qrService';
 
-const prisma = new PrismaClient();
+
 
 const isMissingBreakTable = (error: any) =>
   error?.code === 'P2021' || String(error?.message || '').includes('break_entries') || String(error?.message || '').includes('does not exist');
@@ -137,7 +138,7 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({
-        where: { id: employee.assignedOfficeLocationId }
+        where: { id: Number(employee.assignedOfficeLocationId) }
       });
       if (location && location.officeIpAddress) {
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -198,7 +199,7 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({
-        where: { id: employee.assignedOfficeLocationId }
+        where: { id: Number(employee.assignedOfficeLocationId) }
       });
       if (location && location.officeIpAddress) {
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;

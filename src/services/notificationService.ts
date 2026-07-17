@@ -1,7 +1,8 @@
-import { PrismaClient, AppUser } from '@prisma/client';
+import prisma from '../prisma';
+import { AppUser } from '@prisma/client';
 import { sendPushToUser } from './pushService';
 
-const prisma = new PrismaClient();
+
 
 export const notify = async (userId: number | undefined | null, title: string, message: string) => {
   if (!userId) return null;

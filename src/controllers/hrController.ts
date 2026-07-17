@@ -1,5 +1,6 @@
+import prisma from '../prisma';
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { AuthRequest } from '../middlewares/authMiddleware';
 import * as RequestService from '../services/requestService';
 import { monthAnalytics } from '../services/analyticsService';
@@ -7,7 +8,7 @@ import { attendanceCsv, monthSummary, payrollCsv, payrollLockView, payrollRegist
 import { notifyUser } from '../services/mailService';
 import { uploadDailyGroupPhoto, uploadGroupPhoto } from '../services/cloudinaryService';
 
-const prisma = new PrismaClient();
+
 
 export const listEmployees = async (req: AuthRequest, res: Response) => {
   try {

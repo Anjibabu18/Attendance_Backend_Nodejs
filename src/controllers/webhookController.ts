@@ -1,8 +1,9 @@
+import prisma from '../prisma';
 import { Request as Req, Response as Res } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { checkIn, checkOut } from '../services/attendancePunchService';
 
-const prisma = new PrismaClient();
+
 const WEBHOOK_SECRET = process.env.BIOMETRIC_WEBHOOK_SECRET || 'zkt-biometric-secret-2026';
 
 export const biometricPunch = async (req: Req, res: Res) => {

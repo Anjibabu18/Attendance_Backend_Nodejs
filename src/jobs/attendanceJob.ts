@@ -1,7 +1,8 @@
+import prisma from '../prisma';
 import cron from 'node-cron';
-import { PrismaClient, AttendanceStatus } from '@prisma/client';
+import { AttendanceStatus } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
 
 // Run every day at 23:59
 export const runAttendanceMissingCheckoutJob = async () => {

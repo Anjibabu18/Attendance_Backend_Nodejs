@@ -1,8 +1,9 @@
+import prisma from '../prisma';
 import cron from 'node-cron';
 import nodemailer from 'nodemailer';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+
 
 const isoDate = (date = new Date()) => date.toISOString().slice(0, 10);
 const formatDate = (date = new Date(), options: Intl.DateTimeFormatOptions) =>

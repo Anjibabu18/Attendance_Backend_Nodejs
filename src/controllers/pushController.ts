@@ -1,8 +1,9 @@
+import prisma from '../prisma';
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { getVapidPublicKey, saveSubscription, removeSubscription, removeAllSubscriptions, sendPushToUser } from '../services/pushService';
 
-const prisma = new PrismaClient();
+
 
 async function currentUserId(req: Request) {
   const authUser = (req as any).user;

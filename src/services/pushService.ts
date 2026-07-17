@@ -1,7 +1,8 @@
+import prisma from '../prisma';
 import webpush from 'web-push';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+
 
 // VAPID keys - generate once and store in .env
 // To generate: npx web-push generate-vapid-keys

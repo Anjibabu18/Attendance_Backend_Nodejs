@@ -1,9 +1,10 @@
+import prisma from '../prisma';
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { monthSummary, startOfMonth, endOfMonth, timeOnly } from '../services/attendanceReportService';
 
-const prisma = new PrismaClient();
+
 
 const assignedEmployeeIds = async (username: string) => {
   const manager = await prisma.appUser.findUnique({ where: { username } });

@@ -1,7 +1,8 @@
-import { PrismaClient, AppUser } from '@prisma/client';
+import prisma from '../prisma';
+import { AppUser } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+
 
 export const findByUsername = async (username: string): Promise<AppUser | null> => {
   return prisma.appUser.findUnique({

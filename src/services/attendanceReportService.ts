@@ -1,6 +1,7 @@
-import { PrismaClient, AttendanceEntry, AttendanceStatus, Employee } from '@prisma/client';
+import prisma from '../prisma';
+import { AttendanceEntry, AttendanceStatus, Employee } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
 
 export const startOfMonth = (month: string) => new Date(`${month}-01T00:00:00Z`);
 

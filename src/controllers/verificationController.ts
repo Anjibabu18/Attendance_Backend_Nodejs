@@ -1,10 +1,11 @@
+import prisma from '../prisma';
 import { Response } from 'express';
-import { PrismaClient, LiveVerificationStatus } from '@prisma/client';
+import { LiveVerificationStatus } from '@prisma/client';
 import { AuthRequest } from '../middlewares/authMiddleware';
 import { verifyFace } from '../services/faceVerificationService';
 import { uploadAttendancePhoto } from '../services/cloudinaryService';
 
-const prisma = new PrismaClient();
+
 
 export const getPendingVerification = async (req: AuthRequest, res: Response) => {
   try {

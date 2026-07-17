@@ -1,3 +1,4 @@
+import prisma from '../prisma';
 import { Request, Response } from 'express';
 import {
   generateRegistrationOptions,
@@ -5,10 +6,10 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
-import { PrismaClient } from '@prisma/client';
+
 import { createAccessToken, createRefreshToken } from '../utils/jwt';
 
-const prisma = new PrismaClient();
+
 
 const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
 

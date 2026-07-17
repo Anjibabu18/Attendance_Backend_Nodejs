@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prisma';
+
 import * as crypto from 'crypto';
 
-const prisma = new PrismaClient();
+
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
 export const internalDailyCodeForQr = (token: string) => {

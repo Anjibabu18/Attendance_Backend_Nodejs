@@ -1,7 +1,8 @@
+import prisma from '../prisma';
 import nodemailer from 'nodemailer';
-import { PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+
+
 
 const mailEnabled = process.env.MAIL_ENABLED === 'true';
 const mailUser = process.env.MAIL_USERNAME || process.env.MAIL_USER;

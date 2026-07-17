@@ -1,12 +1,13 @@
+import prisma from '../prisma';
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { AuthRequest } from '../middlewares/authMiddleware';
 import bcrypt from 'bcryptjs';
 import { monthAnalytics } from '../services/analyticsService';
 import { uploadGroupPhoto } from '../services/cloudinaryService';
 import { auditCsv, listAuditEvents } from '../services/auditService';
 
-const prisma = new PrismaClient();
+
 const toDateOnly = (value: string | Date) => {
   const date = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00Z`);
   date.setUTCHours(0, 0, 0, 0);
@@ -86,7 +87,7 @@ export const generateQr = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Select a valid office location before generating QR' });
     }
 
-    const officeLocation = await prisma.officeLocation.findUnique({ where: { id: officeId } });
+    const officeLocation = await prisma.officeLocation.findUnique({ where: { id: Number(officeId) } });
     if (!officeLocation) {
       return res.status(404).json({ error: 'Office location not found. Save office location first, then generate QR.' });
     }

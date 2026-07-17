@@ -1,10 +1,11 @@
+import prisma from '../prisma';
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
+
 import { requireAuth, requireRole } from '../middlewares/authMiddleware';
 import { payrollCsv, payrollRegister } from '../services/attendanceReportService';
 
 const router = Router();
-const prisma = new PrismaClient();
+
 
 router.use(requireAuth);
 router.use(requireRole(['ROLE_ADMIN', 'ROLE_HR']));

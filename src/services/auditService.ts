@@ -1,7 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../prisma';
+
 import * as crypto from 'crypto';
 
-const prisma = new PrismaClient();
+
 
 const auditUnavailable = (error: any) =>
   error?.code === 'P2021' || error?.code === 'P2022' || String(error?.message || '').includes('punch_audit_logs') || String(error?.message || '').includes('qr_scan_audit_logs') || String(error?.message || '').includes('face_verification_logs');

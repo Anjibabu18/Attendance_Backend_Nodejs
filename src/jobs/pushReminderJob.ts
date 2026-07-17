@@ -1,8 +1,9 @@
+import prisma from '../prisma';
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+
 import { sendPushToUser } from '../services/pushService';
 
-const prisma = new PrismaClient();
+
 
 /**
  * Push Notification Reminder Job

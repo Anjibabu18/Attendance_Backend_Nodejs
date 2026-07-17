@@ -1,10 +1,11 @@
-import { PrismaClient, Employee, LeaveRequestStatus, RegularizationStatus, WorkRequestType, WorkRequestStatus, CompOffRequestStatus } from '@prisma/client';
+import prisma from '../prisma';
+import { Employee, LeaveRequestStatus, RegularizationStatus, WorkRequestType, WorkRequestStatus, CompOffRequestStatus } from '@prisma/client';
 import { uploadDocument } from './cloudinaryService';
 import { notifyHr, notifyUser } from './mailService';
 import { assertPayrollUnlocked } from './attendanceReportService';
 import { notifyUserRecord } from './notificationService';
 
-const prisma = new PrismaClient();
+
 
 const requestInclude = {
   employee: true,

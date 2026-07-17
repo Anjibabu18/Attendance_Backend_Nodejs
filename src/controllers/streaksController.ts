@@ -1,9 +1,10 @@
+import prisma from '../prisma';
 import { Response } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware';
-import { PrismaClient } from '@prisma/client';
+
 import { getEmployeeStreaks } from '../services/streaksService';
 
-const prisma = new PrismaClient();
+
 
 export const getStreaks = async (req: AuthRequest, res: Response) => {
   try {

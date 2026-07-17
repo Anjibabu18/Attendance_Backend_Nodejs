@@ -1,10 +1,11 @@
-import { PrismaClient, Employee, AttendanceEntry, OfficeLocation } from '@prisma/client';
+import prisma from '../prisma';
+import { Employee, AttendanceEntry, OfficeLocation } from '@prisma/client';
 import { uploadAttendancePhoto } from './cloudinaryService';
 import { verifyFace } from './faceVerificationService';
 import { assertPayrollUnlocked } from './attendanceReportService';
 import { logFaceVerification } from './auditService';
 
-const prisma = new PrismaClient();
+
 
 const validateCoordinates = (latitude: number, longitude: number) => {
   if (isNaN(latitude) || latitude < -90 || latitude > 90) {
@@ -35,7 +36,7 @@ export const evaluatePlace = async (employee: Employee, latitude: number, longit
   let office: OfficeLocation | null = null;
   
   if (employee.assignedOfficeLocationId) {
-    office = await prisma.officeLocation.findUnique({ where: { id: employee.assignedOfficeLocationId } });
+    office = await prisma.officeLocation.findUnique({ where: { id: Number(employee.assignedOfficeLocationId) } });
   }
   
   if (!office || !office.active) {
