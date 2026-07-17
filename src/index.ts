@@ -160,6 +160,19 @@ app.use('/api/account', accountRoutes);
 app.use('/api/webauthn', webauthnRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
+import { runAttendanceMissingCheckoutJob } from './jobs/attendanceJob';
+app.get('/api/cron/daily-attendance', async (req, res) => {
+  // Optional: check Authorization header if Vercel CRON_SECRET is set
+  if (process.env.CRON_SECRET) {
+    const authHeader = req.headers.authorization;
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ error: 'Unauthorized cron request' });
+    }
+  }
+  await runAttendanceMissingCheckoutJob();
+  res.json({ status: 'OK', message: 'Cron job executed' });
+});
+
 // Global Error Handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);

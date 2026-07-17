@@ -3,5 +3,11 @@
   "buildCommand": "npm run build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index.js" }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-attendance",
+      "schedule": "30 23 * * *"
+    }
   ]
 }
