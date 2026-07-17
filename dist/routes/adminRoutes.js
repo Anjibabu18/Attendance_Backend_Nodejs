@@ -73,6 +73,7 @@ router.delete('/holidays/:id', adminController.deleteHoliday);
 router.get('/analytics', adminController.analytics);
 router.get('/production-checklist', adminController.productionChecklist);
 router.get('/audit-logs', adminController.auditLogs);
+router.get('/audit-logs.csv', adminController.auditLogsCsv);
 router.get('/office-location', adminController.listOfficeLocations);
 router.get('/office-location/active', adminController.activeOfficeLocation);
 router.post('/office-location/active', adminController.saveActiveOfficeLocation);

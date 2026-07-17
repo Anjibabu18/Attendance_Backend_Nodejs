@@ -36,12 +36,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.saveProductionPolicy = exports.productionBackup = exports.productionSessions = exports.productionExceptions = exports.productionDevices = exports.uploadCompanyPhoto = exports.uploadCompanyRolePhoto = exports.setEmployeeEnabled = exports.importEmployees = exports.employeesCsv = exports.assignRoster = exports.bulkEditEmployees = exports.bulkResetPasswords = exports.updateEmployeeUsername = exports.updateEmployeeStatus = exports.resetEmployeePassword = exports.assignEmployeeOfficeLocation = exports.deleteOfficeLocation = exports.auditLogs = exports.employeeLeaveBalances = exports.setLeaveBalance = exports.saveActiveOfficeLocation = exports.activeOfficeLocation = exports.listOfficeLocations = exports.productionChecklist = exports.analytics = exports.deleteHoliday = exports.createHoliday = exports.listHolidays = exports.saveAttendanceSettings = exports.getAttendanceSettings = exports.listManagerAssignments = exports.assignManager = exports.listManagers = exports.createManager = exports.createHr = exports.resetDeviceBinding = exports.updateEmployee = exports.createEmployee = exports.employeeDetail = exports.listEmployees = exports.getQrImage = exports.getLatestQrToken = exports.generateQr = exports.createCompanyRole = exports.listCompanyRoles = exports.createShift = exports.listShifts = exports.createDepartment = exports.listDepartments = void 0;
-exports.statutoryReport = exports.approveProductionDevice = void 0;
+exports.productionBackup = exports.productionSessions = exports.productionExceptions = exports.productionDevices = exports.uploadCompanyPhoto = exports.uploadCompanyRolePhoto = exports.setEmployeeEnabled = exports.importEmployees = exports.employeesCsv = exports.assignRoster = exports.bulkEditEmployees = exports.bulkResetPasswords = exports.updateEmployeeUsername = exports.updateEmployeeStatus = exports.resetEmployeePassword = exports.assignEmployeeOfficeLocation = exports.deleteOfficeLocation = exports.auditLogsCsv = exports.auditLogs = exports.employeeLeaveBalances = exports.setLeaveBalance = exports.saveActiveOfficeLocation = exports.activeOfficeLocation = exports.listOfficeLocations = exports.productionChecklist = exports.analytics = exports.deleteHoliday = exports.createHoliday = exports.listHolidays = exports.saveAttendanceSettings = exports.getAttendanceSettings = exports.listManagerAssignments = exports.assignManager = exports.listManagers = exports.createManager = exports.createHr = exports.resetDeviceBinding = exports.updateEmployee = exports.createEmployee = exports.employeeDetail = exports.listEmployees = exports.getQrImage = exports.getLatestQrToken = exports.generateQr = exports.createCompanyRole = exports.listCompanyRoles = exports.createShift = exports.listShifts = exports.createDepartment = exports.listDepartments = void 0;
+exports.statutoryReport = exports.approveProductionDevice = exports.saveProductionPolicy = void 0;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const analyticsService_1 = require("../services/analyticsService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
+const auditService_1 = require("../services/auditService");
 const prisma = new client_1.PrismaClient();
 const toDateOnly = (value) => {
     const date = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00Z`);
@@ -539,7 +540,16 @@ const activeOfficeLocation = async (req, res) => {
 exports.activeOfficeLocation = activeOfficeLocation;
 const saveActiveOfficeLocation = async (req, res) => {
     try {
-        const saved = await prisma.officeLocation.create({ data: { officeName: req.body.officeName, latitude: Number(req.body.latitude), longitude: Number(req.body.longitude), radiusMeters: Number(req.body.radiusMeters), officeIpAddress: req.body.officeIpAddress || null, active: true } });
+        const latitude = Number(req.body.latitude);
+        const longitude = Number(req.body.longitude);
+        const radiusMeters = Number(req.body.radiusMeters || 100);
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)
+            throw new Error("Latitude must be a number between -90 and 90. Example: 17.4931753");
+        if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)
+            throw new Error("Longitude must be a number between -180 and 180. Example: 78.4132323");
+        if (!Number.isFinite(radiusMeters) || radiusMeters <= 0)
+            throw new Error("Radius must be a positive number in meters");
+        const saved = await prisma.officeLocation.create({ data: { officeName: req.body.officeName, latitude, longitude, radiusMeters, officeIpAddress: req.body.officeIpAddress || null, active: true } });
         res.json(saved);
     }
     catch (error) {
@@ -575,8 +585,26 @@ const employeeLeaveBalances = async (req, res) => {
     }
 };
 exports.employeeLeaveBalances = employeeLeaveBalances;
-const auditLogs = async (req, res) => { res.json([]); };
+const auditLogs = async (req, res) => {
+    try {
+        res.json(await (0, auditService_1.listAuditEvents)(Number(req.query.limit || 80)));
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 exports.auditLogs = auditLogs;
+const auditLogsCsv = async (req, res) => {
+    try {
+        res.header('Content-Type', 'text/csv');
+        res.attachment(`attendance-audit-${new Date().toISOString().slice(0, 10)}.csv`);
+        res.send(await (0, auditService_1.auditCsv)());
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.auditLogsCsv = auditLogsCsv;
 const parseOptionalNumber = (value) => value === undefined || value === null || value === '' ? null : Number(value);
 const deleteOfficeLocation = async (req, res) => {
     try {

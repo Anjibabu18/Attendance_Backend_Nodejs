@@ -10,6 +10,7 @@ const employeePunchController_1 = require("../controllers/employeePunchControlle
 const pushController_1 = require("../controllers/pushController");
 const employeeController_1 = require("../controllers/employeeController");
 const streaksController_1 = require("../controllers/streaksController");
+const verificationController_1 = require("../controllers/verificationController");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // Middleware for all employee routes
@@ -26,6 +27,8 @@ router.get('/attendance/report.pdf', employeeController_1.attendanceReport);
 router.get('/attendance/payslip', employeeController_1.payslip);
 router.get('/leave-balances', employeeController_1.leaveBalances);
 router.get('/streaks', streaksController_1.getStreaks);
+router.get('/live-verify/pending', verificationController_1.getPendingVerification);
+router.post('/live-verify/:requestId/submit', upload.single('file'), verificationController_1.submitVerification);
 // Push notifications
 router.get('/push/vapid-key', pushController_1.vapidKey);
 router.post('/push/subscribe', pushController_1.subscribe);

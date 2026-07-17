@@ -104,11 +104,16 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
 
     await validateApprovedDevice(req.user!.username, deviceId);
 
-    if (!qrTokenStr) {
-      return res.status(400).json({ error: 'QR token is required for punch-in' });
+    let auditOfficeId = null;
+    const settings = await prisma.attendanceSettings.findFirst();
+    if (settings?.requireQrForPunch) {
+      if (!qrTokenStr) {
+        return res.status(400).json({ error: 'QR token is required for punch-in' });
+      }
+      const qrData = await validateQr(qrTokenStr);
+      await verifyInternalDailyQrCode(qrData);
+      auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
     }
-    const qrData = await validateQr(qrTokenStr);
-    await verifyInternalDailyQrCode(qrData);
 
     if (!file) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
@@ -117,7 +122,11 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const employee = await currentEmployee(user.id);
-    assertQrBelongsToEmployeeOffice(employee, qrData);
+
+    if (settings?.requireQrForPunch && auditOfficeId) {
+       const qrData = await validateQr(qrTokenStr);
+       assertQrBelongsToEmployeeOffice(employee, qrData);
+    }
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({
@@ -156,11 +165,16 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
 
     await validateApprovedDevice(req.user!.username, deviceId);
 
-    if (!qrTokenStr) {
-      return res.status(400).json({ error: 'QR token is required for punch-out' });
+    let auditOfficeId = null;
+    const settings = await prisma.attendanceSettings.findFirst();
+    if (settings?.requireQrForPunch) {
+      if (!qrTokenStr) {
+        return res.status(400).json({ error: 'QR token is required for punch-out' });
+      }
+      const qrData = await validateQr(qrTokenStr);
+      await verifyInternalDailyQrCode(qrData);
+      auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
     }
-    const qrData = await validateQr(qrTokenStr);
-    await verifyInternalDailyQrCode(qrData);
 
     if (!file) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
@@ -169,7 +183,11 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
     const employee = await currentEmployee(user.id);
-    assertQrBelongsToEmployeeOffice(employee, qrData);
+
+    if (settings?.requireQrForPunch && auditOfficeId) {
+       const qrData = await validateQr(qrTokenStr);
+       assertQrBelongsToEmployeeOffice(employee, qrData);
+    }
 
     if (employee.assignedOfficeLocationId) {
       const location = await prisma.officeLocation.findUnique({

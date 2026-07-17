@@ -5,6 +5,7 @@ const client_1 = require("@prisma/client");
 const cloudinaryService_1 = require("./cloudinaryService");
 const faceVerificationService_1 = require("./faceVerificationService");
 const attendanceReportService_1 = require("./attendanceReportService");
+const auditService_1 = require("./auditService");
 const prisma = new client_1.PrismaClient();
 const validateCoordinates = (latitude, longitude) => {
     if (isNaN(latitude) || latitude < -90 || latitude > 90) {
@@ -37,6 +38,12 @@ const evaluatePlace = async (employee, latitude, longitude) => {
     }
     if (!office) {
         throw new Error('No active office location found');
+    }
+    try {
+        validateCoordinates(Number(office.latitude), Number(office.longitude));
+    }
+    catch {
+        throw new Error("Office location is invalid. Admin must save correct latitude and longitude for this office.");
     }
     const distance = (0, exports.distanceMeters)(office.latitude, office.longitude, latitude, longitude);
     return { office, distanceMeters: distance, insideRadius: distance <= office.radiusMeters };
@@ -79,6 +86,7 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
         // Face Verification using Descriptor
         const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
         if (!faceResult.verified) {
+            await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, action: 'CHECK_IN', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
             throw new Error(`Face verification failed: ${faceResult.message}`);
         }
         faceScore = faceResult.similarityScore;
@@ -117,6 +125,9 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
             isHardwarePunch: isHardware || false
         }
     });
+    if (!isHardware) {
+        await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, attendanceEntryId: entry.id, action: 'CHECK_IN', similarityScore: faceScore, verified: Boolean(faceVerified), message: 'Verified by Browser ML', photoUrl: uploadUrl });
+    }
     // IMPOSSIBLE TRAVEL / FRAUD DETECTION
     try {
         const lastEntry = await prisma.attendanceEntry.findFirst({
@@ -183,6 +194,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
         // Face Verification using Descriptor
         const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
         if (!faceResult.verified) {
+            await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, action: 'CHECK_OUT', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
             throw new Error(`Face verification failed: ${faceResult.message}`);
         }
         faceScore = faceResult.similarityScore;
@@ -222,6 +234,9 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
             isHardwarePunch: isHardware || false
         },
     });
+    if (!isHardware) {
+        await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, attendanceEntryId: entry.id, action: 'CHECK_OUT', similarityScore: faceScore, verified: Boolean(faceVerified), message: 'Verified by Browser ML', photoUrl: uploadUrl });
+    }
     // IMPOSSIBLE TRAVEL / FRAUD DETECTION
     try {
         const lastEntry = await prisma.attendanceEntry.findFirst({

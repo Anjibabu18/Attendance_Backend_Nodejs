@@ -184,15 +184,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 import { startAttendanceCronJob } from './jobs/attendanceJob';
 import { startPushReminderJobs } from './jobs/pushReminderJob';
 import { startEmailDigestJob } from './jobs/emailDigestJob';
+import { startLiveVerificationCronJob } from './jobs/liveVerificationJob';
 
 export default app;
 
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    runAttendanceMissingCheckoutJob().catch(console.error);
     startAttendanceCronJob();
     startPushReminderJobs();
     startEmailDigestJob();
+    startLiveVerificationCronJob();
   });
 }
 

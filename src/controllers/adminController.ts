@@ -4,6 +4,7 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 import bcrypt from 'bcryptjs';
 import { monthAnalytics } from '../services/analyticsService';
 import { uploadGroupPhoto } from '../services/cloudinaryService';
+import { auditCsv, listAuditEvents } from '../services/auditService';
 
 const prisma = new PrismaClient();
 const toDateOnly = (value: string | Date) => {
@@ -422,7 +423,13 @@ export const activeOfficeLocation = async (req: AuthRequest, res: Response) => {
 
 export const saveActiveOfficeLocation = async (req: AuthRequest, res: Response) => {
   try {
-    const saved = await prisma.officeLocation.create({ data: { officeName: req.body.officeName, latitude: Number(req.body.latitude), longitude: Number(req.body.longitude), radiusMeters: Number(req.body.radiusMeters), officeIpAddress: req.body.officeIpAddress || null, active: true } });
+    const latitude = Number(req.body.latitude);
+    const longitude = Number(req.body.longitude);
+    const radiusMeters = Number(req.body.radiusMeters || 100);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) throw new Error("Latitude must be a number between -90 and 90. Example: 17.4931753");
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new Error("Longitude must be a number between -180 and 180. Example: 78.4132323");
+    if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) throw new Error("Radius must be a positive number in meters");
+    const saved = await prisma.officeLocation.create({ data: { officeName: req.body.officeName, latitude, longitude, radiusMeters, officeIpAddress: req.body.officeIpAddress || null, active: true } });
     res.json(saved);
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
@@ -449,7 +456,19 @@ export const employeeLeaveBalances = async (req: AuthRequest, res: Response) => 
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
 
-export const auditLogs = async (req: AuthRequest, res: Response) => { res.json([]); };
+export const auditLogs = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await listAuditEvents(Number(req.query.limit || 80)));
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
+
+export const auditLogsCsv = async (req: AuthRequest, res: Response) => {
+  try {
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`attendance-audit-${new Date().toISOString().slice(0, 10)}.csv`);
+    res.send(await auditCsv());
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
 
 const parseOptionalNumber = (value: any) => value === undefined || value === null || value === '' ? null : Number(value);
 
@@ -685,3 +704,5 @@ export const statutoryReport = async (req: AuthRequest, res: Response) => {
     res.send(rows.join('\n'));
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
+
+

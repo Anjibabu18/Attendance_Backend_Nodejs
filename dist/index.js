@@ -200,6 +200,18 @@ app.use('/api/realtime', realtimeRoutes_1.default);
 app.use('/api/account', accountRoutes_1.default);
 app.use('/api/webauthn', webauthnRoutes_1.default);
 app.use('/api/webhooks', webhookRoutes_1.default);
+const attendanceJob_1 = require("./jobs/attendanceJob");
+app.get('/api/cron/daily-attendance', async (req, res) => {
+    // Optional: check Authorization header if Vercel CRON_SECRET is set
+    if (process.env.CRON_SECRET) {
+        const authHeader = req.headers.authorization;
+        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return res.status(401).json({ error: 'Unauthorized cron request' });
+        }
+    }
+    await (0, attendanceJob_1.runAttendanceMissingCheckoutJob)();
+    res.json({ status: 'OK', message: 'Cron job executed' });
+});
 // Global Error Handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -207,15 +219,18 @@ app.use((err, req, res, next) => {
         error: err.message || 'Internal Server Error',
     });
 });
-const attendanceJob_1 = require("./jobs/attendanceJob");
+const attendanceJob_2 = require("./jobs/attendanceJob");
 const pushReminderJob_1 = require("./jobs/pushReminderJob");
 const emailDigestJob_1 = require("./jobs/emailDigestJob");
+const liveVerificationJob_1 = require("./jobs/liveVerificationJob");
 exports.default = app;
 if (!process.env.VERCEL) {
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
-        (0, attendanceJob_1.startAttendanceCronJob)();
+        (0, attendanceJob_1.runAttendanceMissingCheckoutJob)().catch(console.error);
+        (0, attendanceJob_2.startAttendanceCronJob)();
         (0, pushReminderJob_1.startPushReminderJobs)();
         (0, emailDigestJob_1.startEmailDigestJob)();
+        (0, liveVerificationJob_1.startLiveVerificationCronJob)();
     });
 }

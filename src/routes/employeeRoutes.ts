@@ -5,6 +5,7 @@ import { place, postCheckIn, postCheckOut, today, qr, device, todayBreaks, start
 import { vapidKey, subscribe, unsubscribe, testPush } from '../controllers/pushController';
 import { profile, uploadProfilePhoto, registerFace, attendance, attendanceSummary, attendanceExport, attendanceReport, payslip, leaveBalances, listLeaveRequests, createLeaveRequest, cancelLeaveRequest, uploadLeaveAttachment, listRegularizations, createRegularization, uploadRegularizationAttachment, listWorkRequests, createWorkRequest, uploadWorkAttachment, listCompOffs, createCompOff, uploadCompOffAttachment } from '../controllers/employeeController';
 import { getStreaks } from '../controllers/streaksController';
+import { getPendingVerification, submitVerification } from '../controllers/verificationController';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -24,6 +25,8 @@ router.get('/attendance/report.pdf', attendanceReport);
 router.get('/attendance/payslip', payslip);
 router.get('/leave-balances', leaveBalances);
 router.get('/streaks', getStreaks);
+router.get('/live-verify/pending', getPendingVerification);
+router.post('/live-verify/:requestId/submit', upload.single('file'), submitVerification);
 
 // Push notifications
 router.get('/push/vapid-key', vapidKey);

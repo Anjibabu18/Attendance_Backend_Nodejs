@@ -13,10 +13,10 @@ export const runAttendanceMissingCheckoutJob = async () => {
     
     const targetDate = new Date(Date.UTC(istDate.getFullYear(), istDate.getMonth(), istDate.getDate()));
 
-    // Find all entries for targetDate that have a check-in but no check-out
+    // Find all entries strictly before today that have a check-in but no check-out
     const entries = await prisma.attendanceEntry.findMany({
       where: {
-        date: targetDate,
+        date: { lte: targetDate },
         inTime: { not: null },
         outTime: null,
       }
