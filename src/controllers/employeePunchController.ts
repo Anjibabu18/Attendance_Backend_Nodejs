@@ -10,6 +10,12 @@ const isMissingBreakTable = (error: any) =>
   error?.code === 'P2021' || String(error?.message || '').includes('break_entries') || String(error?.message || '').includes('does not exist');
 
 
+const readCoordinate = (source: any, primary: string, fallback: string) => {
+  const value = source?.[primary] ?? source?.[fallback];
+  const num = Number(value);
+  return Number.isFinite(num) ? num : NaN;
+};
+
 const assertQrBelongsToEmployeeOffice = (employee: any, qrData: any) => {
   const qrOfficeId = qrData?.officeLocation?.id;
   if (!qrOfficeId) throw new Error('QR office is missing');
@@ -39,8 +45,9 @@ const currentEmployee = async (userId: number) => {
 
 export const place = async (req: AuthRequest, res: Response) => {
   try {
-    const latitude = parseFloat(req.query.latitude as string);
-    const longitude = parseFloat(req.query.longitude as string);
+    const latitude = readCoordinate(req.query, 'latitude', 'lat');
+    const longitude = readCoordinate(req.query, 'longitude', 'lng');
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return res.status(400).json({ error: 'Could not read device GPS. Please allow location access and retry.' });
     
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
@@ -89,8 +96,8 @@ export const device = async (req: AuthRequest, res: Response) => {
 
 export const postCheckIn = async (req: AuthRequest, res: Response) => {
   try {
-    const latitude = parseFloat(req.body.latitude);
-    const longitude = parseFloat(req.body.longitude);
+    const latitude = readCoordinate(req.body, 'latitude', 'lat');
+    const longitude = readCoordinate(req.body, 'longitude', 'lng');
     const deviceId = req.body.deviceId;
     const qrTokenStr = req.body.qrToken;
     const file = req.file;
@@ -150,8 +157,8 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
 
 export const postCheckOut = async (req: AuthRequest, res: Response) => {
   try {
-    const latitude = parseFloat(req.body.latitude);
-    const longitude = parseFloat(req.body.longitude);
+    const latitude = readCoordinate(req.body, 'latitude', 'lat');
+    const longitude = readCoordinate(req.body, 'longitude', 'lng');
     const deviceId = req.body.deviceId;
     const qrTokenStr = req.body.qrToken;
     const file = req.file;
@@ -323,6 +330,7 @@ export const endBreak = async (req: AuthRequest, res: Response) => {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 
 

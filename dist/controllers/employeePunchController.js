@@ -4,9 +4,13 @@ exports.endBreak = exports.startBreak = exports.todayBreaks = exports.today = ex
 const client_1 = require("@prisma/client");
 const attendancePunchService_1 = require("../services/attendancePunchService");
 const qrService_1 = require("../services/qrService");
-const auditService_1 = require("../services/auditService");
 const prisma = new client_1.PrismaClient();
 const isMissingBreakTable = (error) => error?.code === 'P2021' || String(error?.message || '').includes('break_entries') || String(error?.message || '').includes('does not exist');
+const readCoordinate = (source, primary, fallback) => {
+    const value = source?.[primary] ?? source?.[fallback];
+    const num = Number(value);
+    return Number.isFinite(num) ? num : NaN;
+};
 const assertQrBelongsToEmployeeOffice = (employee, qrData) => {
     const qrOfficeId = qrData?.officeLocation?.id;
     if (!qrOfficeId)
@@ -35,23 +39,23 @@ const currentEmployee = async (userId) => {
 };
 const place = async (req, res) => {
     try {
-        const latitude = parseFloat(req.query.latitude);
-        const longitude = parseFloat(req.query.longitude);
+        const latitude = readCoordinate(req.query, 'latitude', 'lat');
+        const longitude = readCoordinate(req.query, 'longitude', 'lng');
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude))
+            return res.status(400).json({ error: 'Could not read device GPS. Please allow location access and retry.' });
         const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
         const result = await (0, attendancePunchService_1.evaluatePlace)(employee, latitude, longitude);
-        const officeLocation = {
-            id: result.office.id,
-            officeName: result.office.officeName,
-            latitude: result.office.latitude,
-            longitude: result.office.longitude,
-            radiusMeters: result.office.radiusMeters,
-        };
         res.json({
-            office: officeLocation,
-            officeLocation,
+            office: {
+                id: result.office.id,
+                officeName: result.office.officeName,
+                latitude: result.office.latitude,
+                longitude: result.office.longitude,
+                radiusMeters: result.office.radiusMeters,
+            },
             latitude,
             longitude,
             distanceMeters: result.distanceMeters,
@@ -65,25 +69,12 @@ const place = async (req, res) => {
 };
 exports.place = place;
 const qr = async (req, res) => {
-    const token = req.query.token;
-    const meta = (0, auditService_1.clientMeta)(req);
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
+        const token = req.query.token;
         const qrToken = await (0, qrService_1.validateQr)(token);
-        const response = await (0, qrService_1.qrResponse)(qrToken);
-        await (0, auditService_1.logQrScan)({
-            employeeId: user?.employee?.id ?? null,
-            officeLocationId: qrToken.officeLocationId,
-            qrTokenId: qrToken.id,
-            token,
-            mode: response.mode,
-            status: 'ACCEPTED',
-            ...meta,
-        });
-        res.json(response);
+        res.json(await (0, qrService_1.qrResponse)(qrToken));
     }
     catch (error) {
-        await (0, auditService_1.logQrScan)({ token, status: 'REJECTED', reason: error.message, ...meta });
         res.status(400).json({ error: error.message });
     }
 };
@@ -100,12 +91,9 @@ const device = async (req, res) => {
 };
 exports.device = device;
 const postCheckIn = async (req, res) => {
-    let auditEmployeeId = null;
-    let auditOfficeId = null;
-    const auditMeta = (0, auditService_1.clientMeta)(req);
     try {
-        const latitude = parseFloat(req.body.latitude);
-        const longitude = parseFloat(req.body.longitude);
+        const latitude = readCoordinate(req.body, 'latitude', 'lat');
+        const longitude = readCoordinate(req.body, 'longitude', 'lng');
         const deviceId = req.body.deviceId;
         const qrTokenStr = req.body.qrToken;
         const file = req.file;
@@ -118,12 +106,16 @@ const postCheckIn = async (req, res) => {
             catch (e) { }
         } // multer populates this
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
-        if (!qrTokenStr) {
-            return res.status(400).json({ error: 'QR token is required for punch-in' });
+        let auditOfficeId = null;
+        const settings = await prisma.attendanceSettings.findFirst();
+        if (settings?.requireQrForPunch) {
+            if (!qrTokenStr) {
+                return res.status(400).json({ error: 'QR token is required for punch-in' });
+            }
+            const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
+            await verifyInternalDailyQrCode(qrData);
+            auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         }
-        const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
-        await verifyInternalDailyQrCode(qrData);
-        auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         if (!file) {
             return res.status(400).json({ error: 'Selfie photo is required for punch' });
         }
@@ -131,8 +123,10 @@ const postCheckIn = async (req, res) => {
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
-        auditEmployeeId = employee.id;
-        assertQrBelongsToEmployeeOffice(employee, qrData);
+        if (settings?.requireQrForPunch && auditOfficeId) {
+            const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
+            assertQrBelongsToEmployeeOffice(employee, qrData);
+        }
         if (employee.assignedOfficeLocationId) {
             const location = await prisma.officeLocation.findUnique({
                 where: { id: employee.assignedOfficeLocationId }
@@ -146,22 +140,17 @@ const postCheckIn = async (req, res) => {
             }
         }
         const entry = await (0, attendancePunchService_1.checkIn)(employee, latitude, longitude, file.buffer, faceDescriptor);
-        await (0, auditService_1.logPunchAudit)({ employeeId: employee.id, action: 'CHECK_IN', stage: 'PUNCH_SAVE', status: 'ACCEPTED', deviceId, officeLocationId: auditOfficeId, latitude, longitude, faceScore: entry.checkInFaceScore, faceVerified: entry.checkInFaceVerified, ...auditMeta });
         res.json(entry);
     }
     catch (error) {
-        await (0, auditService_1.logPunchAudit)({ employeeId: auditEmployeeId, action: 'CHECK_IN', stage: 'PUNCH_SAVE', status: 'REJECTED', reason: error.message, deviceId: req.body?.deviceId, officeLocationId: auditOfficeId, latitude: Number(req.body?.latitude) || null, longitude: Number(req.body?.longitude) || null, ...auditMeta });
         res.status(400).json({ error: error.message });
     }
 };
 exports.postCheckIn = postCheckIn;
 const postCheckOut = async (req, res) => {
-    let auditEmployeeId = null;
-    let auditOfficeId = null;
-    const auditMeta = (0, auditService_1.clientMeta)(req);
     try {
-        const latitude = parseFloat(req.body.latitude);
-        const longitude = parseFloat(req.body.longitude);
+        const latitude = readCoordinate(req.body, 'latitude', 'lat');
+        const longitude = readCoordinate(req.body, 'longitude', 'lng');
         const deviceId = req.body.deviceId;
         const qrTokenStr = req.body.qrToken;
         const file = req.file;
@@ -174,12 +163,16 @@ const postCheckOut = async (req, res) => {
             catch (e) { }
         }
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
-        if (!qrTokenStr) {
-            return res.status(400).json({ error: 'QR token is required for punch-out' });
+        let auditOfficeId = null;
+        const settings = await prisma.attendanceSettings.findFirst();
+        if (settings?.requireQrForPunch) {
+            if (!qrTokenStr) {
+                return res.status(400).json({ error: 'QR token is required for punch-out' });
+            }
+            const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
+            await verifyInternalDailyQrCode(qrData);
+            auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         }
-        const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
-        await verifyInternalDailyQrCode(qrData);
-        auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         if (!file) {
             return res.status(400).json({ error: 'Selfie photo is required for punch' });
         }
@@ -187,8 +180,10 @@ const postCheckOut = async (req, res) => {
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
-        auditEmployeeId = employee.id;
-        assertQrBelongsToEmployeeOffice(employee, qrData);
+        if (settings?.requireQrForPunch && auditOfficeId) {
+            const qrData = await (0, qrService_1.validateQr)(qrTokenStr);
+            assertQrBelongsToEmployeeOffice(employee, qrData);
+        }
         if (employee.assignedOfficeLocationId) {
             const location = await prisma.officeLocation.findUnique({
                 where: { id: employee.assignedOfficeLocationId }
@@ -202,11 +197,9 @@ const postCheckOut = async (req, res) => {
             }
         }
         const entry = await (0, attendancePunchService_1.checkOut)(employee, latitude, longitude, file.buffer, faceDescriptor);
-        await (0, auditService_1.logPunchAudit)({ employeeId: employee.id, action: 'CHECK_OUT', stage: 'PUNCH_SAVE', status: 'ACCEPTED', deviceId, officeLocationId: auditOfficeId, latitude, longitude, faceScore: entry.checkOutFaceScore, faceVerified: entry.checkOutFaceVerified, ...auditMeta });
         res.json(entry);
     }
     catch (error) {
-        await (0, auditService_1.logPunchAudit)({ employeeId: auditEmployeeId, action: 'CHECK_OUT', stage: 'PUNCH_SAVE', status: 'REJECTED', reason: error.message, deviceId: req.body?.deviceId, officeLocationId: auditOfficeId, latitude: Number(req.body?.latitude) || null, longitude: Number(req.body?.longitude) || null, ...auditMeta });
         res.status(400).json({ error: error.message });
     }
 };
