@@ -150,6 +150,8 @@ model Employee {
   deviceFingerprint      String?   @map("device_fingerprint") @db.VarChar(100)
   faceDescriptor         String?   @map("face_descriptor") @db.Text
 
+  deviceRequests         DeviceRequest[]
+
   // References to other tables (to be added)
   assignedOfficeLocationId Int? @map("assigned_office_location_id")
   assignedOfficeLocation   OfficeLocation? @relation(fields: [assignedOfficeLocationId], references: [id])
@@ -506,5 +508,18 @@ model FaceVerificationLog {
   @@index([employeeId, createdAt], name: "idx_face_audit_employee_created")
   @@index([verified, createdAt], name: "idx_face_audit_verified_created")
   @@map("face_verification_logs")
+}
+
+
+model DeviceRequest {
+  id        Int      @id @default(autoincrement())
+  employeeId Int     @map("employee_id")
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  deviceId  String   @map("device_id") @db.VarChar(120)
+  label     String?  @db.VarChar(100)
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("device_requests")
 }
 

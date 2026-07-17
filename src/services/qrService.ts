@@ -73,15 +73,6 @@ export const deviceApproved = async (username: string, deviceId: string) => {
   
   const employee = user.employee;
   
-  // If fingerprint is not set, bind the device automatically
-  if (!employee.deviceFingerprint) {
-    await prisma.employee.update({
-      where: { id: employee.id },
-      data: { deviceFingerprint: deviceId }
-    });
-    return true;
-  }
-  
   // Return true if the requested deviceId matches the stored fingerprint
   return employee.deviceFingerprint === deviceId;
 };

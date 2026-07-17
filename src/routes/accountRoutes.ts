@@ -34,8 +34,41 @@ router.post('/password', async (req, res) => {
   }
 });
 
-router.get('/devices/current', async (req, res) => {
-  res.json({ deviceId: String(req.query.deviceId || ''), approved: true, registered: true });
+router.get('/devices/current', async (req: any, res) => {
+  const deviceId = String(req.query.deviceId || '');
+  if (!deviceId) return res.json({ deviceId, approved: false, registered: false });
+  const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
+  if (!user || !user.employee) return res.json({ deviceId, approved: false, registered: false });
+  
+  if (user.employee.deviceFingerprint === deviceId) {
+    return res.json({ deviceId, approved: true, registered: true });
+  }
+
+  const reqObj = await prisma.deviceRequest.findFirst({ where: { employeeId: user.employee.id, deviceId } });
+  res.json({ deviceId, approved: false, registered: !!reqObj });
+});
+
+router.post('/devices/register', async (req: any, res) => {
+  try {
+    const { deviceId, label } = req.body;
+    if (!deviceId) throw new Error('Device ID is required');
+    const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
+    if (!user || !user.employee) throw new Error('Employee not found');
+
+    const existing = await prisma.deviceRequest.findFirst({ where: { employeeId: user.employee.id, deviceId } });
+    if (existing) return res.json({ ok: true, message: 'Already pending' });
+
+    await prisma.deviceRequest.create({
+      data: {
+        employeeId: user.employee.id,
+        deviceId,
+        label: label || 'Mobile Device'
+      }
+    });
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
 });
 
 export default router;

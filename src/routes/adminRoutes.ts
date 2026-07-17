@@ -47,6 +47,7 @@ router.get('/audit-logs.csv', adminController.auditLogsCsv);
 router.get('/office-location', adminController.listOfficeLocations);
 router.get('/office-location/active', adminController.activeOfficeLocation);
 router.post('/office-location/active', adminController.saveActiveOfficeLocation);
+router.put('/office-location/:id', adminController.updateOfficeLocation);
 router.delete('/office-location/:id', adminController.deleteOfficeLocation);
 
 router.post('/leave-balances', adminController.setLeaveBalance);

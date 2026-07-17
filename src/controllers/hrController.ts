@@ -348,9 +348,46 @@ export const rejectLeaveCancellation = async (req: AuthRequest, res: Response) =
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
 
-export const pendingDeviceRequests = async (req: AuthRequest, res: Response) => { res.json([]); };
-export const approveDeviceRequest = async (req: AuthRequest, res: Response) => { res.json({ ok: true, id: Number(req.params.id), approved: true }); };
-export const rejectDeviceRequest = async (req: AuthRequest, res: Response) => { res.json({ ok: true, id: Number(req.params.id), approved: false }); };
+export const pendingDeviceRequests = async (req: AuthRequest, res: Response) => {
+  try {
+    const pending = await prisma.deviceRequest.findMany({
+      where: { approved: false },
+      include: { employee: { include: { user: true } } }
+    });
+    const mapped = pending.map(item => ({
+      id: item.id,
+      username: item.employee?.user?.username || 'Unknown',
+      deviceId: item.deviceId,
+      label: item.label,
+      approved: item.approved,
+      createdAt: item.createdAt
+    }));
+    res.json(mapped);
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
+
+export const approveDeviceRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const dr = await prisma.deviceRequest.findUnique({ where: { id } });
+    if (!dr) throw new Error('Device request not found');
+
+    await prisma.$transaction([
+      prisma.deviceRequest.update({ where: { id }, data: { approved: true } }),
+      prisma.employee.update({ where: { id: dr.employeeId }, data: { deviceFingerprint: dr.deviceId } })
+    ]);
+
+    res.json({ ok: true, id, approved: true });
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
+
+export const rejectDeviceRequest = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.deviceRequest.delete({ where: { id } });
+    res.json({ ok: true, id, approved: false });
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
 
 export const uploadCompanyRolePhoto = async (req: AuthRequest, res: Response) => {
   try {

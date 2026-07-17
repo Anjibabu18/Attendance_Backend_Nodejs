@@ -482,6 +482,31 @@ export const deleteOfficeLocation = async (req: AuthRequest, res: Response) => {
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
 
+export const updateOfficeLocation = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    const latitude = Number(req.body.latitude);
+    const longitude = Number(req.body.longitude);
+    const radiusMeters = Number(req.body.radiusMeters || 100);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) throw new Error("Latitude must be a number between -90 and 90");
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) throw new Error("Longitude must be a number between -180 and 180");
+    if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) throw new Error("Radius must be a positive number in meters");
+    
+    const updated = await prisma.officeLocation.update({
+      where: { id },
+      data: {
+        officeName: req.body.officeName,
+        latitude,
+        longitude,
+        radiusMeters,
+        officeIpAddress: req.body.officeIpAddress || null,
+        active: req.body.active ?? true
+      }
+    });
+    res.json(updated);
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+};
+
 export const assignEmployeeOfficeLocation = async (req: AuthRequest, res: Response) => {
   try {
     const employee = await prisma.employee.update({
