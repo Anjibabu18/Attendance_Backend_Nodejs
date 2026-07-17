@@ -88,8 +88,7 @@ const registerFace = async (req, res) => {
             res.status(400).json({ error: 'Invalid face descriptor' });
             return;
         }
-        const username = req.user.sub;
-        const employee = await getEmployee(username);
+        const employee = await getEmployee(req.user.username);
         await prisma.employee.update({
             where: { id: employee.id },
             data: { faceDescriptor: JSON.stringify(descriptor) },

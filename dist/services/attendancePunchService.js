@@ -69,6 +69,12 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
     let uploadUrl = null;
     let faceScore = null;
     let faceVerified = true; // Default true for hardware
+    if (!isHardware && !employee.faceDescriptor) {
+        throw new Error('Face registration required before punching. Please register Face AI first.');
+    }
+    if (!isHardware && !faceDescriptor) {
+        throw new Error('Live face verification is required for punch.');
+    }
     if (!isHardware && photoBuffer && faceDescriptor) {
         // Face Verification using Descriptor
         const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
@@ -167,6 +173,12 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     let uploadUrl = null;
     let faceScore = null;
     let faceVerified = true;
+    if (!isHardware && !employee.faceDescriptor) {
+        throw new Error('Face registration required before punching. Please register Face AI first.');
+    }
+    if (!isHardware && !faceDescriptor) {
+        throw new Error('Live face verification is required for punch.');
+    }
     if (!isHardware && photoBuffer && faceDescriptor) {
         // Face Verification using Descriptor
         const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);

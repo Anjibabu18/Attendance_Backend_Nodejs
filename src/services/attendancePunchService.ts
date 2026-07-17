@@ -91,6 +91,14 @@ export const checkIn = async (
   let faceScore = null;
   let faceVerified = true; // Default true for hardware
 
+  if (!isHardware && !employee.faceDescriptor) {
+    throw new Error('Face registration required before punching. Please register Face AI first.');
+  }
+
+  if (!isHardware && !faceDescriptor) {
+    throw new Error('Live face verification is required for punch.');
+  }
+
   if (!isHardware && photoBuffer && faceDescriptor) {
     // Face Verification using Descriptor
     const faceResult = await verifyFace(employee.faceDescriptor as any, faceDescriptor);
@@ -205,6 +213,14 @@ export const checkOut = async (
   let uploadUrl = null;
   let faceScore = null;
   let faceVerified = true;
+
+  if (!isHardware && !employee.faceDescriptor) {
+    throw new Error('Face registration required before punching. Please register Face AI first.');
+  }
+
+  if (!isHardware && !faceDescriptor) {
+    throw new Error('Live face verification is required for punch.');
+  }
 
   if (!isHardware && photoBuffer && faceDescriptor) {
     // Face Verification using Descriptor

@@ -22,6 +22,7 @@ const getEmployeeProfile = async (userId) => {
         name: employee.name,
         status: employee.status,
         profilePhotoUrl: employee.profilePhotoUrl,
+        faceRegistered: Boolean(employee.faceDescriptor),
         assignedOfficeLocation: employee.assignedOfficeLocation,
         // Add other fields as they become available in Prisma
     };
