@@ -53,6 +53,19 @@ router.get('/devices/all', async (req: any, res) => {
   if (!user || !user.employee) return res.json([]);
 
   const devices = await prisma.deviceRequest.findMany({ where: { employeeId: user.employee.id } });
+  
+  // Include legacy device if it exists and isn't already in the table
+  if (user.employee.deviceFingerprint && !devices.some(d => d.deviceId === user.employee!.deviceFingerprint)) {
+    devices.unshift({
+      id: -1, // special ID for legacy device
+      employeeId: user.employee.id,
+      deviceId: user.employee.deviceFingerprint,
+      label: 'Legacy Device',
+      approved: true,
+      createdAt: new Date()
+    });
+  }
+  
   res.json(devices);
 });
 
@@ -90,6 +103,14 @@ router.delete('/devices/:id', async (req: any, res) => {
     const id = Number(req.params.id);
     const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
     if (!user || !user.employee) throw new Error('Employee not found');
+
+    if (id === -1) {
+      await prisma.employee.update({
+        where: { id: user.employee.id },
+        data: { deviceFingerprint: null }
+      });
+      return res.json({ ok: true });
+    }
 
     const dr = await prisma.deviceRequest.findUnique({ where: { id } });
     if (!dr || dr.employeeId !== user.employee.id) throw new Error('Device not found or not owned by you');
