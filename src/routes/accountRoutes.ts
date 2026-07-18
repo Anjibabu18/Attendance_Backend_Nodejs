@@ -45,7 +45,15 @@ router.get('/devices/current', async (req: any, res) => {
   }
 
   const reqObj = await prisma.deviceRequest.findFirst({ where: { employeeId: user.employee.id, deviceId } });
-  res.json({ deviceId, approved: false, registered: !!reqObj });
+  res.json({ deviceId, approved: reqObj?.approved || false, registered: !!reqObj });
+});
+
+router.get('/devices/all', async (req: any, res) => {
+  const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
+  if (!user || !user.employee) return res.json([]);
+
+  const devices = await prisma.deviceRequest.findMany({ where: { employeeId: user.employee.id } });
+  res.json(devices);
 });
 
 router.post('/devices/register', async (req: any, res) => {
@@ -56,7 +64,13 @@ router.post('/devices/register', async (req: any, res) => {
     if (!user || !user.employee) throw new Error('Employee not found');
 
     const existing = await prisma.deviceRequest.findFirst({ where: { employeeId: user.employee.id, deviceId } });
-    if (existing) return res.json({ ok: true, message: 'Already pending' });
+    if (existing) return res.json({ ok: true, message: 'Already pending or approved' });
+
+    // Check device limit
+    const deviceCount = await prisma.deviceRequest.count({ where: { employeeId: user.employee.id } });
+    if (deviceCount >= 3) {
+      throw new Error('You have reached the maximum limit of 3 registered devices. Please remove an old device first.');
+    }
 
     await prisma.deviceRequest.create({
       data: {
@@ -65,6 +79,22 @@ router.post('/devices/register', async (req: any, res) => {
         label: label || 'Mobile Device'
       }
     });
+    res.json({ ok: true });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/devices/:id', async (req: any, res) => {
+  try {
+    const id = Number(req.params.id);
+    const user = await prisma.appUser.findUnique({ where: { username: req.user.username }, include: { employee: true } });
+    if (!user || !user.employee) throw new Error('Employee not found');
+
+    const dr = await prisma.deviceRequest.findUnique({ where: { id } });
+    if (!dr || dr.employeeId !== user.employee.id) throw new Error('Device not found or not owned by you');
+
+    await prisma.deviceRequest.delete({ where: { id } });
     res.json({ ok: true });
   } catch (error: any) {
     res.status(400).json({ error: error.message });

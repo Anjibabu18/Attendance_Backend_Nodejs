@@ -372,10 +372,7 @@ export const approveDeviceRequest = async (req: AuthRequest, res: Response) => {
     const dr = await prisma.deviceRequest.findUnique({ where: { id } });
     if (!dr) throw new Error('Device request not found');
 
-    await prisma.$transaction([
-      prisma.deviceRequest.update({ where: { id }, data: { approved: true } }),
-      prisma.employee.update({ where: { id: dr.employeeId }, data: { deviceFingerprint: dr.deviceId } })
-    ]);
+    await prisma.deviceRequest.update({ where: { id }, data: { approved: true } });
 
     res.json({ ok: true, id, approved: true });
   } catch (error: any) { res.status(400).json({ error: error.message }); }

@@ -73,8 +73,21 @@ export const deviceApproved = async (username: string, deviceId: string) => {
   
   const employee = user.employee;
   
-  // Return true if the requested deviceId matches the stored fingerprint
-  return employee.deviceFingerprint === deviceId;
+  // Backward compatibility: check if it matches the legacy single fingerprint
+  if (employee.deviceFingerprint === deviceId) {
+    return true;
+  }
+
+  // Check the new DeviceRequest table for an approved row for this device
+  const approvedReq = await prisma.deviceRequest.findFirst({
+    where: {
+      employeeId: employee.id,
+      deviceId: deviceId,
+      approved: true
+    }
+  });
+
+  return !!approvedReq;
 };
 
 export const validateApprovedDevice = async (username: string, deviceId: string) => {
