@@ -1,10 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getEmployeeAttendance = exports.getEmployeeProfile = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../prisma"));
 const getEmployeeProfile = async (userId) => {
-    const employee = await prisma.employee.findUnique({
+    const employee = await prisma_1.default.employee.findUnique({
         where: { userId },
         include: {
             assignedOfficeLocation: true,
@@ -33,7 +35,7 @@ const getEmployeeAttendance = async (employeeId, month) => {
     const start = new Date(`${month}-01T00:00:00Z`);
     const end = new Date(start);
     end.setUTCMonth(end.getUTCMonth() + 1);
-    const entries = await prisma.attendanceEntry.findMany({
+    const entries = await prisma_1.default.attendanceEntry.findMany({
         where: {
             employeeId,
             date: {
@@ -47,8 +49,8 @@ const getEmployeeAttendance = async (employeeId, month) => {
     return entries.map(e => ({
         ...e,
         date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date).slice(0, 10),
-        inTime: e.inTime instanceof Date ? e.inTime.toISOString().slice(11, 19) : (e.inTime ? String(e.inTime).slice(11, 19) : null),
-        outTime: e.outTime instanceof Date ? e.outTime.toISOString().slice(11, 19) : (e.outTime ? String(e.outTime).slice(11, 19) : null),
+        inTime: e.inTime instanceof Date ? e.inTime.toISOString() : (e.inTime ? String(e.inTime) : null),
+        outTime: e.outTime instanceof Date ? e.outTime.toISOString() : (e.outTime ? String(e.outTime) : null),
     }));
 };
 exports.getEmployeeAttendance = getEmployeeAttendance;

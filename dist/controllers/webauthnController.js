@@ -1,10 +1,12 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyAuthentication = exports.generateAuthentication = exports.verifyRegistration = exports.generateRegistration = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const server_1 = require("@simplewebauthn/server");
-const client_1 = require("@prisma/client");
 const jwt_1 = require("../utils/jwt");
-const prisma = new client_1.PrismaClient();
 const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
 const normalizeOrigin = (value) => {
     if (!value)
@@ -38,7 +40,7 @@ const getAuthenticatedAppUser = async (req) => {
     const authUser = req.user;
     if (!authUser?.username)
         return null;
-    return prisma.appUser.findUnique({
+    return prisma_1.default.appUser.findUnique({
         where: { username: String(authUser.username) },
         include: { webAuthnCredentials: true },
     });
@@ -107,7 +109,7 @@ const verifyRegistration = async (req, res) => {
             const credentialID = credential.id; // base64url string in v13
             const credentialPublicKey = credential.publicKey; // Uint8Array
             const counter = credential.counter;
-            await prisma.webAuthnCredential.create({
+            await prisma_1.default.webAuthnCredential.create({
                 data: {
                     id: credentialID,
                     publicKey: Buffer.from(credentialPublicKey),
@@ -134,7 +136,7 @@ const generateAuthentication = async (req, res) => {
         const { username } = req.query;
         if (!username)
             return res.status(400).json({ error: 'Username required' });
-        const user = await prisma.appUser.findUnique({
+        const user = await prisma_1.default.appUser.findUnique({
             where: { username: String(username) },
             include: { webAuthnCredentials: true },
         });
@@ -163,7 +165,7 @@ const verifyAuthentication = async (req, res) => {
         const { username, response } = req.body;
         if (!username || !response)
             return res.status(400).json({ error: 'Username and response required' });
-        const user = await prisma.appUser.findUnique({
+        const user = await prisma_1.default.appUser.findUnique({
             where: { username: String(username) },
             include: { webAuthnCredentials: true, employee: true },
         });
@@ -197,7 +199,7 @@ const verifyAuthentication = async (req, res) => {
         }
         const { verified, authenticationInfo } = verification;
         if (verified && authenticationInfo) {
-            await prisma.webAuthnCredential.update({
+            await prisma_1.default.webAuthnCredential.update({
                 where: { id: authenticator.id },
                 data: { counter: authenticationInfo.newCounter },
             });

@@ -1,11 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.debugAdmin = exports.me = exports.refresh = exports.login = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const zod_1 = require("zod");
 const userService_1 = require("../services/userService");
 const jwt_1 = require("../utils/jwt");
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
 const loginSchema = zod_1.z.object({
     username: zod_1.z.string().min(1),
     password: zod_1.z.string().min(1),
@@ -45,7 +47,7 @@ const login = async (req, res) => {
         const refreshToken = (0, jwt_1.createRefreshToken)(user.username, user.role);
         // If employee, fetch employee details
         if (user.role === 'ROLE_EMPLOYEE') {
-            const employee = await prisma.employee.findUnique({
+            const employee = await prisma_1.default.employee.findUnique({
                 where: { userId: user.id },
             });
             if (!employee) {
@@ -113,8 +115,8 @@ const me = async (req, res) => {
 exports.me = me;
 const debugAdmin = async (req, res) => {
     try {
-        const adminCount = await prisma.appUser.count({ where: { role: 'ROLE_ADMIN' } });
-        const admin = await prisma.appUser.findFirst({ where: { role: 'ROLE_ADMIN' }, select: { id: true, username: true, role: true, enabled: true } });
+        const adminCount = await prisma_1.default.appUser.count({ where: { role: 'ROLE_ADMIN' } });
+        const admin = await prisma_1.default.appUser.findFirst({ where: { role: 'ROLE_ADMIN' }, select: { id: true, username: true, role: true, enabled: true } });
         return res.json({ ok: true, adminCount, admin });
     }
     catch (error) {

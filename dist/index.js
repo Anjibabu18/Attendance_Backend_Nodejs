@@ -36,10 +36,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const prisma_1 = __importDefault(require("./prisma"));
 require("./config/env");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const client_1 = require("@prisma/client");
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const employeeRoutes_1 = __importDefault(require("./routes/employeeRoutes"));
 const hrRoutes_1 = __importDefault(require("./routes/hrRoutes"));
@@ -50,7 +50,6 @@ const accountRoutes_1 = __importDefault(require("./routes/accountRoutes"));
 const webauthnRoutes_1 = __importDefault(require("./routes/webauthnRoutes"));
 const webhookRoutes_1 = __importDefault(require("./routes/webhookRoutes"));
 const app = (0, express_1.default)();
-const prisma = new client_1.PrismaClient();
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
     .split(',')
@@ -98,7 +97,7 @@ app.get('/api/version', (req, res) => {
 // Test DB connection endpoint
 app.get('/api/db-test', async (req, res) => {
     try {
-        const usersCount = await prisma.appUser.count();
+        const usersCount = await prisma_1.default.appUser.count();
         res.json({ status: 'OK', usersCount });
     }
     catch (error) {
@@ -113,7 +112,7 @@ const timeString = (value, fallback) => {
 };
 app.get('/api/settings/attendance', async (req, res) => {
     try {
-        const settings = await prisma.attendanceSettings.findFirst();
+        const settings = await prisma_1.default.attendanceSettings.findFirst();
         res.json({
             defaultInTime: timeString(settings?.defaultInTime, '09:00:00'),
             defaultOutTime: timeString(settings?.defaultOutTime, '18:00:00'),
@@ -144,7 +143,7 @@ app.get('/api/holidays', async (req, res) => {
         if (end)
             end.setUTCMonth(end.getUTCMonth() + 1);
         const where = start && end ? { date: { gte: start, lt: end } } : {};
-        const holidays = await prisma.holiday.findMany({ where, orderBy: { date: 'asc' } });
+        const holidays = await prisma_1.default.holiday.findMany({ where, orderBy: { date: 'asc' } });
         res.json(holidays.map(h => ({ id: Number(h.id), date: h.date.toISOString().slice(0, 10), name: h.name })));
     }
     catch (error) {
@@ -154,9 +153,6 @@ app.get('/api/holidays', async (req, res) => {
 app.get('/api/daily-group-photos', async (req, res) => {
     res.json([]);
 });
-app.get('/api/account/devices/current', async (req, res) => {
-    res.json({ deviceId: String(req.query.deviceId || ''), approved: true, registered: true });
-});
 app.get('/api/notifications', async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
@@ -164,10 +160,10 @@ app.get('/api/notifications', async (req, res) => {
             return res.status(401).json({ error: 'Missing authorization' });
         const { verifyToken } = await Promise.resolve().then(() => __importStar(require('./utils/jwt')));
         const decoded = verifyToken(authHeader.substring(7));
-        const user = await prisma.appUser.findUnique({ where: { username: decoded.sub } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: decoded.sub } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        res.json(await prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 }));
+        res.json(await prisma_1.default.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'desc' }, take: 50 }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -180,11 +176,38 @@ app.post('/api/notifications/read', async (req, res) => {
             return res.status(401).json({ error: 'Missing authorization' });
         const { verifyToken } = await Promise.resolve().then(() => __importStar(require('./utils/jwt')));
         const decoded = verifyToken(authHeader.substring(7));
-        const user = await prisma.appUser.findUnique({ where: { username: decoded.sub } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: decoded.sub } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        await prisma.notification.updateMany({ where: { userId: user.id, read: false }, data: { read: true } });
+        await prisma_1.default.notification.updateMany({ where: { userId: user.id, read: false }, data: { read: true } });
         res.json({ ok: true });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+app.get('/api/notifications/stream', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || req.query.token;
+        let tokenStr = authHeader;
+        if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+            tokenStr = authHeader.substring(7);
+        }
+        if (!tokenStr)
+            return res.status(401).json({ error: 'Missing authorization' });
+        const { verifyToken } = await Promise.resolve().then(() => __importStar(require('./utils/jwt')));
+        const decoded = verifyToken(tokenStr);
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: decoded.sub } });
+        if (!user)
+            return res.status(401).json({ error: 'User not found' });
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        });
+        res.write('event: open\ndata: {}\n\n');
+        const { addSseClient } = await Promise.resolve().then(() => __importStar(require('./services/notificationService')));
+        addSseClient(user.id, res);
     }
     catch (error) {
         res.status(400).json({ error: error.message });

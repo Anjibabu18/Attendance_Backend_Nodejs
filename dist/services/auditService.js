@@ -32,11 +32,13 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.auditCsv = exports.listAuditEvents = exports.logFaceVerification = exports.logQrScan = exports.logPunchAudit = exports.clientMeta = exports.tokenHash = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const crypto = __importStar(require("crypto"));
-const prisma = new client_1.PrismaClient();
 const auditUnavailable = (error) => error?.code === 'P2021' || error?.code === 'P2022' || String(error?.message || '').includes('punch_audit_logs') || String(error?.message || '').includes('qr_scan_audit_logs') || String(error?.message || '').includes('face_verification_logs');
 const tokenHash = (token) => {
     if (!token)
@@ -55,7 +57,7 @@ const clientMeta = (req) => {
 exports.clientMeta = clientMeta;
 const logPunchAudit = async (data) => {
     try {
-        await prisma.punchAuditLog.create({
+        await prisma_1.default.punchAuditLog.create({
             data: {
                 employeeId: data.employeeId ?? null,
                 action: data.action,
@@ -81,7 +83,7 @@ const logPunchAudit = async (data) => {
 exports.logPunchAudit = logPunchAudit;
 const logQrScan = async (data) => {
     try {
-        await prisma.qrScanAuditLog.create({
+        await prisma_1.default.qrScanAuditLog.create({
             data: {
                 employeeId: data.employeeId ?? null,
                 officeLocationId: data.officeLocationId ?? null,
@@ -103,7 +105,7 @@ const logQrScan = async (data) => {
 exports.logQrScan = logQrScan;
 const logFaceVerification = async (data) => {
     try {
-        await prisma.faceVerificationLog.create({
+        await prisma_1.default.faceVerificationLog.create({
             data: {
                 employeeId: data.employeeId,
                 attendanceEntryId: data.attendanceEntryId ?? null,
@@ -140,9 +142,9 @@ const listAuditEvents = async (limit = 80) => {
     try {
         const take = Math.min(Math.max(limit, 1), 300);
         const [punch, qr, face] = await Promise.all([
-            prisma.punchAuditLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
-            prisma.qrScanAuditLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
-            prisma.faceVerificationLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
+            prisma_1.default.punchAuditLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
+            prisma_1.default.qrScanAuditLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
+            prisma_1.default.faceVerificationLog.findMany({ include: { employee: true }, orderBy: { createdAt: 'desc' }, take }),
         ]);
         return [...punch.map((row) => serialize(row, 'PUNCH')), ...qr.map((row) => serialize(row, 'QR_SCAN')), ...face.map((row) => serialize(row, 'FACE'))]
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

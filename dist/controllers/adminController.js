@@ -36,14 +36,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.productionBackup = exports.productionSessions = exports.productionExceptions = exports.productionDevices = exports.uploadCompanyPhoto = exports.uploadCompanyRolePhoto = exports.setEmployeeEnabled = exports.importEmployees = exports.employeesCsv = exports.assignRoster = exports.bulkEditEmployees = exports.bulkResetPasswords = exports.updateEmployeeUsername = exports.updateEmployeeStatus = exports.resetEmployeePassword = exports.assignEmployeeOfficeLocation = exports.deleteOfficeLocation = exports.auditLogsCsv = exports.auditLogs = exports.employeeLeaveBalances = exports.setLeaveBalance = exports.saveActiveOfficeLocation = exports.activeOfficeLocation = exports.listOfficeLocations = exports.productionChecklist = exports.analytics = exports.deleteHoliday = exports.createHoliday = exports.listHolidays = exports.saveAttendanceSettings = exports.getAttendanceSettings = exports.listManagerAssignments = exports.assignManager = exports.listManagers = exports.createManager = exports.createHr = exports.resetDeviceBinding = exports.updateEmployee = exports.createEmployee = exports.employeeDetail = exports.listEmployees = exports.getQrImage = exports.getLatestQrToken = exports.generateQr = exports.createCompanyRole = exports.listCompanyRoles = exports.createShift = exports.listShifts = exports.createDepartment = exports.listDepartments = void 0;
-exports.statutoryReport = exports.approveProductionDevice = exports.saveProductionPolicy = void 0;
-const client_1 = require("@prisma/client");
+exports.productionSessions = exports.productionExceptions = exports.productionDevices = exports.uploadCompanyPhoto = exports.uploadCompanyRolePhoto = exports.setEmployeeEnabled = exports.importEmployees = exports.employeesCsv = exports.assignRoster = exports.bulkEditEmployees = exports.bulkResetPasswords = exports.updateEmployeeUsername = exports.updateEmployeeStatus = exports.resetEmployeePassword = exports.assignEmployeeOfficeLocation = exports.updateOfficeLocation = exports.deleteOfficeLocation = exports.auditLogsCsv = exports.auditLogs = exports.employeeLeaveBalances = exports.setLeaveBalance = exports.saveActiveOfficeLocation = exports.activeOfficeLocation = exports.listOfficeLocations = exports.productionChecklist = exports.analytics = exports.deleteHoliday = exports.createHoliday = exports.listHolidays = exports.saveAttendanceSettings = exports.getAttendanceSettings = exports.listManagerAssignments = exports.assignManager = exports.listManagers = exports.createManager = exports.createHr = exports.resetDeviceBinding = exports.updateEmployee = exports.createEmployee = exports.employeeDetail = exports.listEmployees = exports.getQrImage = exports.getLatestQrToken = exports.generateQr = exports.createCompanyRole = exports.listCompanyRoles = exports.createShift = exports.listShifts = exports.createDepartment = exports.listDepartments = void 0;
+exports.statutoryReport = exports.approveProductionDevice = exports.saveProductionPolicy = exports.productionBackup = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const analyticsService_1 = require("../services/analyticsService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
 const auditService_1 = require("../services/auditService");
-const prisma = new client_1.PrismaClient();
+const notificationService_1 = require("../services/notificationService");
 const toDateOnly = (value) => {
     const date = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00Z`);
     date.setUTCHours(0, 0, 0, 0);
@@ -70,7 +70,7 @@ const settingsView = (settings) => ({
 });
 const listDepartments = async (req, res) => {
     try {
-        res.json(await prisma.department.findMany());
+        res.json(await prisma_1.default.department.findMany());
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -80,7 +80,7 @@ exports.listDepartments = listDepartments;
 const createDepartment = async (req, res) => {
     try {
         const { name } = req.body;
-        res.json(await prisma.department.create({ data: { name } }));
+        res.json(await prisma_1.default.department.create({ data: { name } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -89,7 +89,7 @@ const createDepartment = async (req, res) => {
 exports.createDepartment = createDepartment;
 const listShifts = async (req, res) => {
     try {
-        res.json(await prisma.shift.findMany());
+        res.json(await prisma_1.default.shift.findMany());
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -99,7 +99,7 @@ exports.listShifts = listShifts;
 const createShift = async (req, res) => {
     try {
         const { name, inTime, outTime, flexible } = req.body;
-        res.json(await prisma.shift.create({
+        res.json(await prisma_1.default.shift.create({
             data: { name, inTime: new Date(inTime), outTime: new Date(outTime), flexible }
         }));
     }
@@ -110,7 +110,7 @@ const createShift = async (req, res) => {
 exports.createShift = createShift;
 const listCompanyRoles = async (req, res) => {
     try {
-        res.json(await prisma.companyRole.findMany());
+        res.json(await prisma_1.default.companyRole.findMany());
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -120,7 +120,7 @@ exports.listCompanyRoles = listCompanyRoles;
 const createCompanyRole = async (req, res) => {
     try {
         const { name } = req.body;
-        res.json(await prisma.companyRole.create({ data: { name } }));
+        res.json(await prisma_1.default.companyRole.create({ data: { name } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -135,11 +135,11 @@ const generateQr = async (req, res) => {
         if (!Number.isInteger(officeId) || officeId <= 0) {
             return res.status(400).json({ error: 'Select a valid office location before generating QR' });
         }
-        const officeLocation = await prisma.officeLocation.findUnique({ where: { id: officeId } });
+        const officeLocation = await prisma_1.default.officeLocation.findUnique({ where: { id: Number(officeId) } });
         if (!officeLocation) {
             return res.status(404).json({ error: 'Office location not found. Save office location first, then generate QR.' });
         }
-        const existing = await prisma.officeQrToken.findFirst({
+        const existing = await prisma_1.default.officeQrToken.findFirst({
             where: { officeLocationId: officeId, expiresAt: { gt: new Date() } },
             orderBy: { createdAt: 'asc' },
             include: { officeLocation: true }
@@ -149,7 +149,7 @@ const generateQr = async (req, res) => {
         }
         const token = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 10);
-        const qrToken = await prisma.officeQrToken.create({
+        const qrToken = await prisma_1.default.officeQrToken.create({
             data: {
                 token,
                 officeLocationId: officeId,
@@ -170,7 +170,7 @@ const getLatestQrToken = async (req, res) => {
     try {
         const officeId = req.query.officeId ? parseInt(req.query.officeId) : undefined;
         const whereClause = officeId ? { officeLocationId: officeId } : {};
-        const latest = await prisma.officeQrToken.findFirst({
+        const latest = await prisma_1.default.officeQrToken.findFirst({
             where: whereClause,
             orderBy: { createdAt: 'desc' },
             include: { officeLocation: true }
@@ -198,7 +198,7 @@ const getQrImage = async (req, res) => {
 exports.getQrImage = getQrImage;
 const listEmployees = async (req, res) => {
     try {
-        const employees = await prisma.employee.findMany({ include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true } });
+        const employees = await prisma_1.default.employee.findMany({ include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true } });
         res.json(employees.map(e => ({
             id: e.id,
             employeeNumber: e.employeeNumber,
@@ -232,7 +232,7 @@ const employeeDetail = async (req, res) => {
         const end = new Date(start);
         end.setUTCMonth(end.getUTCMonth() + 1);
         const [employee, attendance, leaveBalances, assignments, exceptions, recentRequests] = await Promise.all([
-            prisma.employee.findUnique({
+            prisma_1.default.employee.findUnique({
                 where: { id: employeeId },
                 include: {
                     user: { select: { id: true, username: true, role: true, enabled: true, lastLoginAt: true, lastLoginIp: true } },
@@ -242,22 +242,22 @@ const employeeDetail = async (req, res) => {
                     shift: true,
                 },
             }),
-            prisma.attendanceEntry.findMany({
+            prisma_1.default.attendanceEntry.findMany({
                 where: { employeeId, date: { gte: start, lt: end } },
                 orderBy: { date: 'asc' },
             }),
-            prisma.leaveBalance.findMany({ where: { employeeId, year }, orderBy: { leaveType: 'asc' } }),
-            prisma.managerAssignment.findMany({
+            prisma_1.default.leaveBalance.findMany({ where: { employeeId, year }, orderBy: { leaveType: 'asc' } }),
+            prisma_1.default.managerAssignment.findMany({
                 where: { employeeId },
                 include: { manager: { select: { id: true, username: true, enabled: true } } },
                 orderBy: { createdAt: 'desc' },
             }),
-            prisma.attendanceException.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 10 }),
+            prisma_1.default.attendanceException.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 10 }),
             Promise.all([
-                prisma.leaveRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
-                prisma.regularizationRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
-                prisma.workRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
-                prisma.compOffRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
+                prisma_1.default.leaveRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
+                prisma_1.default.regularizationRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
+                prisma_1.default.workRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
+                prisma_1.default.compOffRequest.findMany({ where: { employeeId }, orderBy: { createdAt: 'desc' }, take: 5 }),
             ]),
         ]);
         if (!employee)
@@ -329,8 +329,8 @@ const createEmployee = async (req, res) => {
     try {
         const { employeeNumber, name, username, password, companyRoleId, officeLocationId, departmentId, shiftId, joinDate } = req.body;
         const passwordHash = await bcryptjs_1.default.hash(password, 10);
-        const user = await prisma.appUser.create({ data: { username, passwordHash, role: 'ROLE_EMPLOYEE' } });
-        const employee = await prisma.employee.create({
+        const user = await prisma_1.default.appUser.create({ data: { username, passwordHash, role: 'ROLE_EMPLOYEE' } });
+        const employee = await prisma_1.default.employee.create({
             data: {
                 employeeNumber, name, userId: user.id,
                 companyRoleId: companyRoleId || null,
@@ -352,7 +352,7 @@ const updateEmployee = async (req, res) => {
     try {
         const id = Number(req.params.id);
         const { employeeNumber, name, companyRoleId, officeLocationId, departmentId, shiftId, joinDate } = req.body;
-        const employee = await prisma.employee.update({
+        const employee = await prisma_1.default.employee.update({
             where: { id },
             data: { employeeNumber, name, companyRoleId: companyRoleId || null, assignedOfficeLocationId: officeLocationId || null, departmentId: departmentId || null, shiftId: shiftId || null, joinDate: joinDate ? toDateOnly(joinDate) : undefined },
             include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true },
@@ -367,7 +367,7 @@ exports.updateEmployee = updateEmployee;
 const resetDeviceBinding = async (req, res) => {
     try {
         const id = Number(req.params.id);
-        const employee = await prisma.employee.update({
+        const employee = await prisma_1.default.employee.update({
             where: { id },
             data: { deviceFingerprint: null },
         });
@@ -381,7 +381,7 @@ exports.resetDeviceBinding = resetDeviceBinding;
 const createHr = async (req, res) => {
     try {
         const passwordHash = await bcryptjs_1.default.hash(req.body.password, 10);
-        res.json(await prisma.appUser.create({ data: { username: req.body.username, passwordHash, role: 'ROLE_HR' } }));
+        res.json(await prisma_1.default.appUser.create({ data: { username: req.body.username, passwordHash, role: 'ROLE_HR' } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -391,7 +391,7 @@ exports.createHr = createHr;
 const createManager = async (req, res) => {
     try {
         const passwordHash = await bcryptjs_1.default.hash(req.body.password, 10);
-        res.json(await prisma.appUser.create({ data: { username: req.body.username, passwordHash, role: 'ROLE_MANAGER' } }));
+        res.json(await prisma_1.default.appUser.create({ data: { username: req.body.username, passwordHash, role: 'ROLE_MANAGER' } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -400,7 +400,7 @@ const createManager = async (req, res) => {
 exports.createManager = createManager;
 const listManagers = async (req, res) => {
     try {
-        res.json(await prisma.appUser.findMany({ where: { role: 'ROLE_MANAGER' }, select: { id: true, username: true, enabled: true } }));
+        res.json(await prisma_1.default.appUser.findMany({ where: { role: 'ROLE_MANAGER' }, select: { id: true, username: true, enabled: true } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -410,8 +410,8 @@ exports.listManagers = listManagers;
 const assignManager = async (req, res) => {
     try {
         const { managerUserId, employeeIds } = req.body;
-        await prisma.managerAssignment.deleteMany({ where: { employeeId: { in: employeeIds } } });
-        await prisma.managerAssignment.createMany({ data: employeeIds.map(employeeId => ({ managerUserId, employeeId })), skipDuplicates: true });
+        await prisma_1.default.managerAssignment.deleteMany({ where: { employeeId: { in: employeeIds } } });
+        await prisma_1.default.managerAssignment.createMany({ data: employeeIds.map(employeeId => ({ managerUserId, employeeId })), skipDuplicates: true });
         res.json({ assigned: employeeIds.length });
     }
     catch (error) {
@@ -421,7 +421,7 @@ const assignManager = async (req, res) => {
 exports.assignManager = assignManager;
 const listManagerAssignments = async (req, res) => {
     try {
-        res.json(await prisma.managerAssignment.findMany({ include: { manager: true, employee: true }, orderBy: { createdAt: 'desc' } }));
+        res.json(await prisma_1.default.managerAssignment.findMany({ include: { manager: true, employee: true }, orderBy: { createdAt: 'desc' } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -430,7 +430,7 @@ const listManagerAssignments = async (req, res) => {
 exports.listManagerAssignments = listManagerAssignments;
 const getAttendanceSettings = async (req, res) => {
     try {
-        res.json(settingsView(await prisma.attendanceSettings.findFirst()));
+        res.json(settingsView(await prisma_1.default.attendanceSettings.findFirst()));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -456,8 +456,13 @@ const saveAttendanceSettings = async (req, res) => {
             permanentOfficeQr: Boolean(req.body.permanentOfficeQr),
             qrTokenValidityMinutes: Number(req.body.qrTokenValidityMinutes ?? 10080),
         };
-        const existing = await prisma.attendanceSettings.findFirst();
-        const saved = existing ? await prisma.attendanceSettings.update({ where: { id: existing.id }, data }) : await prisma.attendanceSettings.create({ data });
+        const existing = await prisma_1.default.attendanceSettings.findFirst();
+        const saved = existing ? await prisma_1.default.attendanceSettings.update({ where: { id: existing.id }, data }) : await prisma_1.default.attendanceSettings.create({ data });
+        // Notify all employees about settings change
+        const inDisplay = req.body.defaultInTime || '09:00';
+        const outDisplay = req.body.defaultOutTime || '18:00';
+        (0, notificationService_1.notifyAllByRole)('ROLE_EMPLOYEE', '⚙️ Schedule Updated', `Office timings updated: In ${inDisplay} → Out ${outDisplay}.`).catch(() => { });
+        (0, notificationService_1.notifyAllByRole)('ROLE_HR', '⚙️ Settings Updated', `Admin updated attendance settings. In: ${inDisplay}, Out: ${outDisplay}.`).catch(() => { });
         res.json(settingsView(saved));
     }
     catch (error) {
@@ -469,7 +474,7 @@ const listHolidays = async (req, res) => {
     try {
         const month = req.query.month;
         const where = month ? { date: { gte: new Date(`${month}-01T00:00:00Z`), lt: new Date(new Date(`${month}-01T00:00:00Z`).setUTCMonth(new Date(`${month}-01T00:00:00Z`).getUTCMonth() + 1)) } } : {};
-        const holidays = await prisma.holiday.findMany({ where, orderBy: { date: 'asc' } });
+        const holidays = await prisma_1.default.holiday.findMany({ where, orderBy: { date: 'asc' } });
         res.json(holidays.map(h => ({ id: Number(h.id), date: h.date.toISOString().slice(0, 10), name: h.name })));
     }
     catch (error) {
@@ -479,7 +484,7 @@ const listHolidays = async (req, res) => {
 exports.listHolidays = listHolidays;
 const createHoliday = async (req, res) => {
     try {
-        const saved = await prisma.holiday.upsert({ where: { date: toDateOnly(req.body.date) }, update: { name: req.body.name }, create: { date: toDateOnly(req.body.date), name: req.body.name } });
+        const saved = await prisma_1.default.holiday.upsert({ where: { date: toDateOnly(req.body.date) }, update: { name: req.body.name }, create: { date: toDateOnly(req.body.date), name: req.body.name } });
         res.json({ id: Number(saved.id), date: saved.date.toISOString().slice(0, 10), name: saved.name });
     }
     catch (error) {
@@ -489,7 +494,7 @@ const createHoliday = async (req, res) => {
 exports.createHoliday = createHoliday;
 const deleteHoliday = async (req, res) => {
     try {
-        await prisma.holiday.delete({ where: { id: Number(req.params.id) } });
+        await prisma_1.default.holiday.delete({ where: { id: Number(req.params.id) } });
         res.json({ ok: true });
     }
     catch (error) {
@@ -509,9 +514,9 @@ exports.analytics = analytics;
 const productionChecklist = async (req, res) => {
     try {
         const [employees, hr, manager] = await Promise.all([
-            prisma.employee.count(),
-            prisma.appUser.count({ where: { role: 'ROLE_HR' } }),
-            prisma.appUser.count({ where: { role: 'ROLE_MANAGER' } }),
+            prisma_1.default.employee.count(),
+            prisma_1.default.appUser.count({ where: { role: 'ROLE_HR' } }),
+            prisma_1.default.appUser.count({ where: { role: 'ROLE_MANAGER' } }),
         ]);
         res.json({ employees, hrAccount: hr > 0, managerAccount: manager > 0 });
     }
@@ -522,7 +527,7 @@ const productionChecklist = async (req, res) => {
 exports.productionChecklist = productionChecklist;
 const listOfficeLocations = async (req, res) => {
     try {
-        res.json(await prisma.officeLocation.findMany({ orderBy: { id: 'asc' } }));
+        res.json(await prisma_1.default.officeLocation.findMany({ where: { active: true }, orderBy: { id: 'asc' } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -531,7 +536,7 @@ const listOfficeLocations = async (req, res) => {
 exports.listOfficeLocations = listOfficeLocations;
 const activeOfficeLocation = async (req, res) => {
     try {
-        res.json(await prisma.officeLocation.findFirst({ where: { active: true }, orderBy: { id: 'asc' } }));
+        res.json(await prisma_1.default.officeLocation.findFirst({ where: { active: true }, orderBy: { id: 'asc' } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -549,7 +554,7 @@ const saveActiveOfficeLocation = async (req, res) => {
             throw new Error("Longitude must be a number between -180 and 180. Example: 78.4132323");
         if (!Number.isFinite(radiusMeters) || radiusMeters <= 0)
             throw new Error("Radius must be a positive number in meters");
-        const saved = await prisma.officeLocation.create({ data: { officeName: req.body.officeName, latitude, longitude, radiusMeters, officeIpAddress: req.body.officeIpAddress || null, active: true } });
+        const saved = await prisma_1.default.officeLocation.create({ data: { officeName: req.body.officeName, latitude, longitude, radiusMeters, officeIpAddress: req.body.officeIpAddress || null, active: true } });
         res.json(saved);
     }
     catch (error) {
@@ -560,7 +565,7 @@ exports.saveActiveOfficeLocation = saveActiveOfficeLocation;
 const setLeaveBalance = async (req, res) => {
     try {
         const { employeeId, leaveType, year, allocatedDays, usedDays } = req.body;
-        const saved = await prisma.leaveBalance.upsert({
+        const saved = await prisma_1.default.leaveBalance.upsert({
             where: { uk_leave_balance_emp_type_year: { employeeId: Number(employeeId), leaveType, year: Number(year) } },
             update: { allocatedDays: Number(allocatedDays), usedDays: Number(usedDays ?? 0) },
             create: { employeeId: Number(employeeId), leaveType, year: Number(year), allocatedDays: Number(allocatedDays), usedDays: Number(usedDays ?? 0) },
@@ -577,7 +582,7 @@ const employeeLeaveBalances = async (req, res) => {
     try {
         const employeeId = Number(req.params.id);
         const year = Number(req.query.year || new Date().getUTCFullYear());
-        const rows = await prisma.leaveBalance.findMany({ where: { employeeId, year }, include: { employee: true } });
+        const rows = await prisma_1.default.leaveBalance.findMany({ where: { employeeId, year }, include: { employee: true } });
         res.json(rows.map(b => ({ ...b, employeeName: b.employee.name, employeeNumber: b.employee.employeeNumber, remainingDays: b.allocatedDays - b.usedDays })));
     }
     catch (error) {
@@ -609,8 +614,8 @@ const parseOptionalNumber = (value) => value === undefined || value === null || 
 const deleteOfficeLocation = async (req, res) => {
     try {
         const id = Number(req.params.id);
-        await prisma.employee.updateMany({ where: { assignedOfficeLocationId: id }, data: { assignedOfficeLocationId: null } });
-        await prisma.officeLocation.delete({ where: { id } });
+        await prisma_1.default.employee.updateMany({ where: { assignedOfficeLocationId: id }, data: { assignedOfficeLocationId: null } });
+        await prisma_1.default.officeLocation.delete({ where: { id } });
         res.json({ ok: true });
     }
     catch (error) {
@@ -618,9 +623,39 @@ const deleteOfficeLocation = async (req, res) => {
     }
 };
 exports.deleteOfficeLocation = deleteOfficeLocation;
+const updateOfficeLocation = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const latitude = Number(req.body.latitude);
+        const longitude = Number(req.body.longitude);
+        const radiusMeters = Number(req.body.radiusMeters || 100);
+        if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)
+            throw new Error("Latitude must be a number between -90 and 90");
+        if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)
+            throw new Error("Longitude must be a number between -180 and 180");
+        if (!Number.isFinite(radiusMeters) || radiusMeters <= 0)
+            throw new Error("Radius must be a positive number in meters");
+        const updated = await prisma_1.default.officeLocation.update({
+            where: { id },
+            data: {
+                officeName: req.body.officeName,
+                latitude,
+                longitude,
+                radiusMeters,
+                officeIpAddress: req.body.officeIpAddress || null,
+                active: req.body.active ?? true
+            }
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.updateOfficeLocation = updateOfficeLocation;
 const assignEmployeeOfficeLocation = async (req, res) => {
     try {
-        const employee = await prisma.employee.update({
+        const employee = await prisma_1.default.employee.update({
             where: { id: Number(req.params.id) },
             data: { assignedOfficeLocationId: parseOptionalNumber(req.body.officeLocationId) },
             include: { assignedOfficeLocation: true, user: true, companyRole: true, department: true, shift: true },
@@ -637,10 +672,10 @@ const resetEmployeePassword = async (req, res) => {
         const { newPassword } = req.body;
         if (!newPassword || String(newPassword).length < 6)
             throw new Error('New password must be at least 6 characters');
-        const employee = await prisma.employee.findUnique({ where: { id: Number(req.params.id) } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { id: Number(req.params.id) } });
         if (!employee)
             throw new Error('Employee not found');
-        await prisma.appUser.update({ where: { id: employee.userId }, data: { passwordHash: await bcryptjs_1.default.hash(newPassword, 10) } });
+        await prisma_1.default.appUser.update({ where: { id: employee.userId }, data: { passwordHash: await bcryptjs_1.default.hash(newPassword, 10) } });
         res.json({ ok: true });
     }
     catch (error) {
@@ -650,7 +685,7 @@ const resetEmployeePassword = async (req, res) => {
 exports.resetEmployeePassword = resetEmployeePassword;
 const updateEmployeeStatus = async (req, res) => {
     try {
-        const saved = await prisma.employee.update({
+        const saved = await prisma_1.default.employee.update({
             where: { id: Number(req.params.id) },
             data: { status: req.body.status, exitDate: req.body.exitDate ? toDateOnly(req.body.exitDate) : null },
             include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true },
@@ -664,11 +699,11 @@ const updateEmployeeStatus = async (req, res) => {
 exports.updateEmployeeStatus = updateEmployeeStatus;
 const updateEmployeeUsername = async (req, res) => {
     try {
-        const employee = await prisma.employee.findUnique({ where: { id: Number(req.params.id) } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { id: Number(req.params.id) } });
         if (!employee)
             throw new Error('Employee not found');
-        await prisma.appUser.update({ where: { id: employee.userId }, data: { username: req.body.username } });
-        res.json(await prisma.employee.findUnique({ where: { id: employee.id }, include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true } }));
+        await prisma_1.default.appUser.update({ where: { id: employee.userId }, data: { username: req.body.username } });
+        res.json(await prisma_1.default.employee.findUnique({ where: { id: employee.id }, include: { user: true, companyRole: true, assignedOfficeLocation: true, department: true, shift: true } }));
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -683,9 +718,9 @@ const bulkResetPasswords = async (req, res) => {
             throw new Error('Select at least one employee');
         if (!newPassword || String(newPassword).length < 6)
             throw new Error('New password must be at least 6 characters');
-        const employees = await prisma.employee.findMany({ where: { id: { in: ids } } });
+        const employees = await prisma_1.default.employee.findMany({ where: { id: { in: ids } } });
         const passwordHash = await bcryptjs_1.default.hash(newPassword, 10);
-        await prisma.appUser.updateMany({ where: { id: { in: employees.map(e => e.userId) } }, data: { passwordHash } });
+        await prisma_1.default.appUser.updateMany({ where: { id: { in: employees.map(e => e.userId) } }, data: { passwordHash } });
         res.json({ updated: employees.length });
     }
     catch (error) {
@@ -707,10 +742,10 @@ const bulkEditEmployees = async (req, res) => {
             data.shiftId = parseOptionalNumber(req.body.shiftId);
         if (req.body.status)
             data.status = req.body.status;
-        const result = Object.keys(data).length ? await prisma.employee.updateMany({ where: { id: { in: ids } }, data }) : { count: 0 };
+        const result = Object.keys(data).length ? await prisma_1.default.employee.updateMany({ where: { id: { in: ids } }, data }) : { count: 0 };
         if (req.body.newPassword) {
-            const employees = await prisma.employee.findMany({ where: { id: { in: ids } } });
-            await prisma.appUser.updateMany({ where: { id: { in: employees.map(e => e.userId) } }, data: { passwordHash: await bcryptjs_1.default.hash(req.body.newPassword, 10) } });
+            const employees = await prisma_1.default.employee.findMany({ where: { id: { in: ids } } });
+            await prisma_1.default.appUser.updateMany({ where: { id: { in: employees.map(e => e.userId) } }, data: { passwordHash: await bcryptjs_1.default.hash(req.body.newPassword, 10) } });
             res.json({ updated: Math.max(result.count, employees.length) });
             return;
         }
@@ -725,7 +760,7 @@ const assignRoster = async (req, res) => {
     try {
         const employeeId = Number(req.body.employeeId);
         const shiftId = Number(req.body.shiftId);
-        await prisma.employee.update({ where: { id: employeeId }, data: { shiftId } });
+        await prisma_1.default.employee.update({ where: { id: employeeId }, data: { shiftId } });
         const start = toDateOnly(req.body.fromDate);
         const end = toDateOnly(req.body.toDate);
         const assignedDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
@@ -738,7 +773,7 @@ const assignRoster = async (req, res) => {
 exports.assignRoster = assignRoster;
 const employeesCsv = async (req, res) => {
     try {
-        const employees = await prisma.employee.findMany({ include: { user: true, department: true, shift: true, companyRole: true, assignedOfficeLocation: true }, orderBy: { id: 'asc' } });
+        const employees = await prisma_1.default.employee.findMany({ include: { user: true, department: true, shift: true, companyRole: true, assignedOfficeLocation: true }, orderBy: { id: 'asc' } });
         const rows = ['employeeNumber,name,username,status,department,shift,companyRole,office'];
         for (const e of employees) {
             rows.push([e.employeeNumber, e.name, e.user.username, e.status, e.department?.name || '', e.shift?.name || '', e.companyRole?.name || '', e.assignedOfficeLocation?.officeName || ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
@@ -763,11 +798,11 @@ const importEmployees = async (req, res) => {
             const [employeeNumber, name, username, password] = line.split(',').map((v) => v.replace(/^"|"$/g, '').trim());
             if (!employeeNumber || !name || !username || !password)
                 continue;
-            const exists = await prisma.employee.findUnique({ where: { employeeNumber } });
+            const exists = await prisma_1.default.employee.findUnique({ where: { employeeNumber } });
             if (exists)
                 continue;
-            const user = await prisma.appUser.create({ data: { username, passwordHash: await bcryptjs_1.default.hash(password, 10), role: 'ROLE_EMPLOYEE' } });
-            await prisma.employee.create({ data: { employeeNumber, name, userId: user.id, joinDate: new Date() } });
+            const user = await prisma_1.default.appUser.create({ data: { username, passwordHash: await bcryptjs_1.default.hash(password, 10), role: 'ROLE_EMPLOYEE' } });
+            await prisma_1.default.employee.create({ data: { employeeNumber, name, userId: user.id, joinDate: new Date() } });
             created++;
         }
         res.json({ created });
@@ -779,10 +814,10 @@ const importEmployees = async (req, res) => {
 exports.importEmployees = importEmployees;
 const setEmployeeEnabled = async (req, res) => {
     try {
-        const employee = await prisma.employee.findUnique({ where: { id: Number(req.params.id) } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { id: Number(req.params.id) } });
         if (!employee)
             throw new Error('Employee not found');
-        await prisma.appUser.update({ where: { id: employee.userId }, data: { enabled: Boolean(req.body.enabled) } });
+        await prisma_1.default.appUser.update({ where: { id: employee.userId }, data: { enabled: Boolean(req.body.enabled) } });
         res.json({ ok: true });
     }
     catch (error) {
@@ -796,7 +831,7 @@ const uploadCompanyRolePhoto = async (req, res) => {
         if (!file)
             throw new Error('Photo file is required');
         const upload = await (0, cloudinaryService_1.uploadGroupPhoto)(file.buffer, `company-role-${req.params.id}`);
-        const saved = await prisma.companyRole.update({ where: { id: Number(req.params.id) }, data: { photoUrl: upload.url } });
+        const saved = await prisma_1.default.companyRole.update({ where: { id: Number(req.params.id) }, data: { photoUrl: upload.url } });
         res.json(saved);
     }
     catch (error) {
@@ -819,12 +854,12 @@ const uploadCompanyPhoto = async (req, res) => {
 exports.uploadCompanyPhoto = uploadCompanyPhoto;
 const productionDevices = async (req, res) => { res.json([]); };
 exports.productionDevices = productionDevices;
-const productionExceptions = async (req, res) => { res.json(await prisma.attendanceException.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })); };
+const productionExceptions = async (req, res) => { res.json(await prisma_1.default.attendanceException.findMany({ orderBy: { createdAt: 'desc' }, take: 50 })); };
 exports.productionExceptions = productionExceptions;
 const productionSessions = async (req, res) => { res.json([]); };
 exports.productionSessions = productionSessions;
 const productionBackup = async (req, res) => {
-    const [employees, users] = await Promise.all([prisma.employee.count(), prisma.appUser.count()]);
+    const [employees, users] = await Promise.all([prisma_1.default.employee.count(), prisma_1.default.appUser.count()]);
     res.json({ employees, users, checkedAt: new Date().toISOString() });
 };
 exports.productionBackup = productionBackup;
@@ -838,7 +873,7 @@ const statutoryReport = async (req, res) => {
         const start = new Date(`${month}-01T00:00:00Z`);
         const end = new Date(start);
         end.setUTCMonth(end.getUTCMonth() + 1);
-        const employees = await prisma.employee.findMany({
+        const employees = await prisma_1.default.employee.findMany({
             include: {
                 user: true,
                 department: true,
@@ -849,7 +884,7 @@ const statutoryReport = async (req, res) => {
             },
             orderBy: { id: 'asc' }
         });
-        const settings = await prisma.attendanceSettings.findFirst() || {
+        const settings = await prisma_1.default.attendanceSettings.findFirst() || {
             standardMonthlySalary: 25000,
             overtimePayPerHour: 0
         };

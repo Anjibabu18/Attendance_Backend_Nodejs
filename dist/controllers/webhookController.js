@@ -1,9 +1,11 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.biometricPunch = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const attendancePunchService_1 = require("../services/attendancePunchService");
-const prisma = new client_1.PrismaClient();
 const WEBHOOK_SECRET = process.env.BIOMETRIC_WEBHOOK_SECRET || 'zkt-biometric-secret-2026';
 const biometricPunch = async (req, res) => {
     try {
@@ -14,7 +16,7 @@ const biometricPunch = async (req, res) => {
         if (!employeeNumber || !timestamp || !punchType) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-        const employee = await prisma.employee.findUnique({
+        const employee = await prisma_1.default.employee.findUnique({
             where: { employeeNumber }
         });
         if (!employee) {

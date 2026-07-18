@@ -4,10 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startEmailDigestJob = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
 const isoDate = (date = new Date()) => date.toISOString().slice(0, 10);
 const formatDate = (date = new Date(), options) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', ...options }).format(date);
 const createTransporter = () => {
@@ -76,7 +75,7 @@ const sendDailyDigests = async () => {
     const today = isoDate();
     const todayStart = new Date(`${today}T00:00:00Z`);
     const todayEnd = new Date(`${today}T23:59:59Z`);
-    const managers = await prisma.appUser.findMany({
+    const managers = await prisma_1.default.appUser.findMany({
         where: { role: 'ROLE_MANAGER' },
         include: {
             managerAssignments: {
@@ -103,8 +102,8 @@ const sendDailyDigests = async () => {
         const late = todayEntries.filter((entry) => (entry?.lateMinutes || 0) > 0 && entry?.status === 'PRESENT').length;
         const employeeIds = teamEmployees.map((employee) => employee.id);
         const [pendingLeaves, pendingRegularizations] = await Promise.all([
-            prisma.leaveRequest.count({ where: { employeeId: { in: employeeIds }, status: 'PENDING' } }),
-            prisma.regularizationRequest.count({ where: { employeeId: { in: employeeIds }, status: 'PENDING' } }),
+            prisma_1.default.leaveRequest.count({ where: { employeeId: { in: employeeIds }, status: 'PENDING' } }),
+            prisma_1.default.regularizationRequest.count({ where: { employeeId: { in: employeeIds }, status: 'PENDING' } }),
         ]);
         try {
             await transporter.sendMail({

@@ -2,6 +2,12 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadDocument = exports.uploadAttendancePhoto = exports.uploadDailyGroupPhoto = exports.uploadGroupPhoto = void 0;
 const cloudinary_1 = require("cloudinary");
+// Configure based on env variables (CLOUDINARY_URL or specific keys)
+cloudinary_1.v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 const isConfigured = () => {
     return !!process.env.CLOUDINARY_CLOUD_NAME && !!process.env.CLOUDINARY_API_KEY && !!process.env.CLOUDINARY_API_SECRET;
 };

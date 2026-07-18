@@ -1,8 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.simplePdf = exports.assertPayrollUnlocked = exports.payrollLockView = exports.attendanceCsv = exports.payrollCsv = exports.csv = exports.payrollRegister = exports.payrollForEmployee = exports.monthSummary = exports.workingDaysInMonth = exports.timeOnly = exports.dateOnly = exports.endOfMonth = exports.startOfMonth = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../prisma"));
 const startOfMonth = (month) => new Date(`${month}-01T00:00:00Z`);
 exports.startOfMonth = startOfMonth;
 const endOfMonth = (month) => {
@@ -28,7 +30,7 @@ const workingDaysInMonth = (month) => {
 };
 exports.workingDaysInMonth = workingDaysInMonth;
 const monthSummary = async (employeeId, month) => {
-    const entries = await prisma.attendanceEntry.findMany({
+    const entries = await prisma_1.default.attendanceEntry.findMany({
         where: { employeeId, date: { gte: (0, exports.startOfMonth)(month), lt: (0, exports.endOfMonth)(month) } },
     });
     const presentDays = entries.filter(e => e.status === 'PRESENT').length;
@@ -51,7 +53,7 @@ const monthSummary = async (employeeId, month) => {
 exports.monthSummary = monthSummary;
 const payrollForEmployee = async (employee, month) => {
     const summary = await (0, exports.monthSummary)(employee.id, month);
-    const entries = await prisma.attendanceEntry.findMany({
+    const entries = await prisma_1.default.attendanceEntry.findMany({
         where: { employeeId: employee.id, date: { gte: (0, exports.startOfMonth)(month), lt: (0, exports.endOfMonth)(month) } },
     });
     const lateMinutes = entries.reduce((sum, e) => sum + (e.lateMinutes || 0), 0);
@@ -93,7 +95,7 @@ const payrollForEmployee = async (employee, month) => {
 };
 exports.payrollForEmployee = payrollForEmployee;
 const payrollRegister = async (month) => {
-    const employees = await prisma.employee.findMany();
+    const employees = await prisma_1.default.employee.findMany();
     return Promise.all(employees.map(e => (0, exports.payrollForEmployee)(e, month)));
 };
 exports.payrollRegister = payrollRegister;
@@ -131,7 +133,7 @@ const attendanceCsv = (employee, month, entries) => {
 };
 exports.attendanceCsv = attendanceCsv;
 const payrollLockView = async (month) => {
-    const lock = await prisma.payrollLock.findUnique({ where: { month } });
+    const lock = await prisma_1.default.payrollLock.findUnique({ where: { month } });
     return { month, locked: Boolean(lock?.locked), updatedAt: lock?.updatedAt ?? null, updatedBy: lock?.updatedBy ?? null };
 };
 exports.payrollLockView = payrollLockView;

@@ -4,9 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startAttendanceCronJob = exports.runAttendanceMissingCheckoutJob = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const node_cron_1 = __importDefault(require("node-cron"));
 const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
 // Run every day at 23:59
 const runAttendanceMissingCheckoutJob = async () => {
     console.log('[Cron] Running daily attendance missing-checkout check (5 AM)...');
@@ -16,7 +16,7 @@ const runAttendanceMissingCheckoutJob = async () => {
         istDate.setDate(istDate.getDate() - 1);
         const targetDate = new Date(Date.UTC(istDate.getFullYear(), istDate.getMonth(), istDate.getDate()));
         // Find all entries strictly before today that have a check-in but no check-out
-        const entries = await prisma.attendanceEntry.findMany({
+        const entries = await prisma_1.default.attendanceEntry.findMany({
             where: {
                 date: { lte: targetDate },
                 inTime: { not: null },
@@ -26,7 +26,7 @@ const runAttendanceMissingCheckoutJob = async () => {
         if (entries.length > 0) {
             console.log(`[Cron] Found ${entries.length} employees who forgot to checkout on ${targetDate.toISOString()}. Marking as ABSENT.`);
             for (const entry of entries) {
-                await prisma.attendanceEntry.update({
+                await prisma_1.default.attendanceEntry.update({
                     where: { id: entry.id },
                     data: {
                         status: client_1.AttendanceStatus.ABSENT,
@@ -40,19 +40,19 @@ const runAttendanceMissingCheckoutJob = async () => {
             console.log('[Cron] No missing checkouts found for yesterday.');
         }
         // Check if targetDate is a working day (Not weekend or holiday)
-        const settings = await prisma.attendanceSettings.findFirst();
+        const settings = await prisma_1.default.attendanceSettings.findFirst();
         const weekendDays = (settings?.weekendDays || 'SUNDAY').split(',');
         const dayName = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'][targetDate.getUTCDay()];
-        const holiday = await prisma.holiday.findFirst({ where: { date: targetDate } });
+        const holiday = await prisma_1.default.holiday.findFirst({ where: { date: targetDate } });
         if (!weekendDays.includes(dayName) && !holiday) {
             // Find employees with NO attendance entry yesterday
-            const activeEmployees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
-            const allEntries = await prisma.attendanceEntry.findMany({ where: { date: targetDate } });
+            const activeEmployees = await prisma_1.default.employee.findMany({ where: { status: 'ACTIVE' } });
+            const allEntries = await prisma_1.default.attendanceEntry.findMany({ where: { date: targetDate } });
             const presentIds = new Set(allEntries.map(e => e.employeeId));
             let absentCount = 0;
             for (const emp of activeEmployees) {
                 if (!presentIds.has(emp.id)) {
-                    await prisma.attendanceEntry.create({
+                    await prisma_1.default.attendanceEntry.create({
                         data: {
                             employeeId: emp.id,
                             date: targetDate,

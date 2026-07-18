@@ -4,9 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.notifyUser = exports.notifyHr = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
 const mailEnabled = process.env.MAIL_ENABLED === 'true';
 const mailUser = process.env.MAIL_USERNAME || process.env.MAIL_USER;
 const mailPassword = process.env.MAIL_PASSWORD || process.env.MAIL_PASS;
@@ -24,7 +23,7 @@ const getHrRecipients = async () => {
     if (override && override.trim().length > 0) {
         return override.split(',').map(e => e.trim()).filter(e => e.length > 0);
     }
-    const hrs = await prisma.appUser.findMany({
+    const hrs = await prisma_1.default.appUser.findMany({
         where: { role: 'ROLE_HR' },
     });
     return hrs

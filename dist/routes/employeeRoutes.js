@@ -19,7 +19,6 @@ router.use((0, authMiddleware_1.requireRole)(['ROLE_EMPLOYEE']));
 // General Employee routes
 router.get('/profile', employeeController_1.profile);
 router.post('/profile/photo', upload.single('file'), employeeController_1.uploadProfilePhoto);
-router.post('/face-register', employeeController_1.registerFace);
 router.get('/attendance', employeeController_1.attendance);
 router.get('/attendance/summary', employeeController_1.attendanceSummary);
 router.get('/attendance/export', employeeController_1.attendanceExport);

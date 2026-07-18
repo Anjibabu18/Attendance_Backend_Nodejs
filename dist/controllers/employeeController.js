@@ -32,17 +32,19 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadCompOffAttachment = exports.createCompOff = exports.listCompOffs = exports.uploadWorkAttachment = exports.createWorkRequest = exports.listWorkRequests = exports.uploadRegularizationAttachment = exports.createRegularization = exports.listRegularizations = exports.uploadLeaveAttachment = exports.cancelLeaveRequest = exports.createLeaveRequest = exports.listLeaveRequests = exports.leaveBalances = exports.payslip = exports.attendanceReport = exports.attendanceExport = exports.attendanceSummary = exports.attendance = exports.registerFace = exports.uploadProfilePhoto = exports.profile = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const employeeService_1 = require("../services/employeeService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
 const RequestService = __importStar(require("../services/requestService"));
 const attendanceReportService_1 = require("../services/attendanceReportService");
-const prisma = new client_1.PrismaClient();
 const profile = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const profileData = await (0, employeeService_1.getEmployeeProfile)(user.id);
@@ -56,18 +58,26 @@ exports.profile = profile;
 const uploadProfilePhoto = async (req, res) => {
     try {
         const file = req.file;
-        if (!file)
+        const photoBase64 = req.body.photoBase64;
+        let photoBuffer;
+        if (file) {
+            photoBuffer = file.buffer;
+        }
+        else if (photoBase64) {
+            photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+        }
+        if (!photoBuffer)
             return res.status(400).json({ error: 'Photo file is required' });
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { userId: user.id } });
         if (!employee)
             return res.status(400).json({ error: 'Employee not found' });
         // Note: Java code used FaceVerificationService to detect exactly 1 face.
         // For brevity, we bypass the face detection step here, but it would go here.
-        const upload = await (0, cloudinaryService_1.uploadGroupPhoto)(file.buffer, `employee-profile-${employee.id}`);
-        await prisma.employee.update({
+        const upload = await (0, cloudinaryService_1.uploadGroupPhoto)(photoBuffer, `employee-profile-${employee.id}`);
+        await prisma_1.default.employee.update({
             where: { id: employee.id },
             data: {
                 profilePhotoUrl: upload.url,
@@ -89,7 +99,7 @@ const registerFace = async (req, res) => {
             return;
         }
         const employee = await getEmployee(req.user.username);
-        await prisma.employee.update({
+        await prisma_1.default.employee.update({
             where: { id: employee.id },
             data: { faceDescriptor: JSON.stringify(descriptor) },
         });
@@ -105,10 +115,10 @@ const attendance = async (req, res) => {
         const month = req.query.month;
         if (!month)
             return res.status(400).json({ error: 'Month is required (YYYY-MM)' });
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { userId: user.id } });
         if (!employee)
             return res.status(400).json({ error: 'Employee not found' });
         const entries = await (0, employeeService_1.getEmployeeAttendance)(employee.id, month);
@@ -182,7 +192,7 @@ const leaveBalances = async (req, res) => {
     try {
         const employee = await getEmployee(req.user.username);
         const year = Number(req.query.year || new Date().getUTCFullYear());
-        const balances = await prisma.leaveBalance.findMany({ where: { employeeId: employee.id, year }, include: { employee: true } });
+        const balances = await prisma_1.default.leaveBalance.findMany({ where: { employeeId: employee.id, year }, include: { employee: true } });
         res.json(balances.map(b => ({
             id: b.id,
             employeeId: b.employeeId,
@@ -201,10 +211,10 @@ const leaveBalances = async (req, res) => {
 };
 exports.leaveBalances = leaveBalances;
 const getEmployee = async (username) => {
-    const user = await prisma.appUser.findUnique({ where: { username } });
+    const user = await prisma_1.default.appUser.findUnique({ where: { username } });
     if (!user)
         throw new Error('User not found');
-    const employee = await prisma.employee.findUnique({ where: { userId: user.id }, include: { user: true } });
+    const employee = await prisma_1.default.employee.findUnique({ where: { userId: user.id }, include: { user: true } });
     if (!employee)
         throw new Error('Employee not found');
     return employee;

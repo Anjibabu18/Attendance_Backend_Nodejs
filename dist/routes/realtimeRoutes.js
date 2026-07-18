@@ -1,11 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const prisma_1 = __importDefault(require("../prisma"));
 const express_1 = require("express");
-const client_1 = require("@prisma/client");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const attendanceReportService_1 = require("../services/attendanceReportService");
 const router = (0, express_1.Router)();
-const prisma = new client_1.PrismaClient();
 router.use(authMiddleware_1.requireAuth);
 router.use((0, authMiddleware_1.requireRole)(['ROLE_ADMIN', 'ROLE_HR']));
 router.get('/board', async (req, res) => {
@@ -13,9 +15,9 @@ router.get('/board', async (req, res) => {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         const [employees, entries, exceptions] = await Promise.all([
-            prisma.employee.count(),
-            prisma.attendanceEntry.findMany({ where: { date: today }, include: { employee: true } }),
-            prisma.attendanceException.findMany({ where: { resolved: false }, include: { employee: true }, orderBy: { createdAt: 'desc' }, take: 10 }),
+            prisma_1.default.employee.count(),
+            prisma_1.default.attendanceEntry.findMany({ where: { date: today }, include: { employee: true } }),
+            prisma_1.default.attendanceException.findMany({ where: { resolved: false }, include: { employee: true }, orderBy: { createdAt: 'desc' }, take: 10 }),
         ]);
         res.json({
             generatedAt: new Date().toISOString(),

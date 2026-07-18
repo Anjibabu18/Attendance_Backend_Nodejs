@@ -1,17 +1,19 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.vapidKey = vapidKey;
 exports.subscribe = subscribe;
 exports.unsubscribe = unsubscribe;
 exports.testPush = testPush;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const pushService_1 = require("../services/pushService");
-const prisma = new client_1.PrismaClient();
 async function currentUserId(req) {
     const authUser = req.user;
     if (!authUser?.username)
         return null;
-    const user = await prisma.appUser.findUnique({ where: { username: authUser.username } });
+    const user = await prisma_1.default.appUser.findUnique({ where: { username: authUser.username } });
     return user?.id ?? null;
 }
 async function vapidKey(req, res) {

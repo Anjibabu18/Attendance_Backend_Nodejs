@@ -32,18 +32,21 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.uploadDailyPhoto = exports.uploadCompanyRolePhoto = exports.rejectDeviceRequest = exports.approveDeviceRequest = exports.pendingDeviceRequests = exports.rejectLeaveCancellation = exports.approveLeaveCancellation = exports.saveAttendanceRange = exports.saveAttendance = exports.rejectCompOff = exports.approveCompOff = exports.pendingCompOffs = exports.rejectWorkRequest = exports.approveWorkRequest = exports.pendingWorkRequests = exports.rejectRegularization = exports.approveRegularization = exports.pendingRegularizations = exports.rejectLeaveRequest = exports.approveLeaveRequest = exports.pendingLeaveRequests = exports.attendanceReport = exports.attendanceExport = exports.attendanceSummary = exports.attendance = exports.scanMissingCheckouts = exports.resolveException = exports.listExceptions = exports.setPayrollLock = exports.getPayrollLock = exports.payrollExport = exports.payroll = exports.analytics = exports.listEmployees = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const RequestService = __importStar(require("../services/requestService"));
 const analyticsService_1 = require("../services/analyticsService");
 const attendanceReportService_1 = require("../services/attendanceReportService");
 const mailService_1 = require("../services/mailService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
-const prisma = new client_1.PrismaClient();
+const notificationService_1 = require("../services/notificationService");
 const listEmployees = async (req, res) => {
     try {
-        const employees = await prisma.employee.findMany({
+        const employees = await prisma_1.default.employee.findMany({
             include: { assignedOfficeLocation: true, department: true, shift: true, user: true, companyRole: true }
         });
         res.json(employees.map(e => ({
@@ -119,7 +122,7 @@ const setPayrollLock = async (req, res) => {
         const locked = String(req.query.locked) === 'true';
         if (!month)
             throw new Error('Month parameter is required');
-        await prisma.payrollLock.upsert({
+        await prisma_1.default.payrollLock.upsert({
             where: { month },
             update: { locked, updatedAt: new Date(), updatedBy: req.user.username },
             create: { month, locked, updatedBy: req.user.username },
@@ -133,7 +136,7 @@ const setPayrollLock = async (req, res) => {
 exports.setPayrollLock = setPayrollLock;
 const listExceptions = async (req, res) => {
     try {
-        const exceptions = await prisma.attendanceException.findMany({
+        const exceptions = await prisma_1.default.attendanceException.findMany({
             where: { resolved: false },
             include: { employee: true },
             orderBy: { createdAt: 'desc' },
@@ -158,7 +161,7 @@ exports.listExceptions = listExceptions;
 const resolveException = async (req, res) => {
     try {
         const id = Number(req.params.id);
-        const saved = await prisma.attendanceException.update({ where: { id }, data: { resolved: true }, include: { employee: true } });
+        const saved = await prisma_1.default.attendanceException.update({ where: { id }, data: { resolved: true }, include: { employee: true } });
         res.json(saved);
     }
     catch (e) {
@@ -170,21 +173,22 @@ const scanMissingCheckouts = async (req, res) => {
     try {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
-        const entries = await prisma.attendanceEntry.findMany({
+        const entries = await prisma_1.default.attendanceEntry.findMany({
             where: { inTime: { not: null }, outTime: null, date: { lt: today } },
             include: { employee: { include: { user: true } } },
         });
         let createdExceptions = 0;
         for (const entry of entries) {
             const message = `Checked in on ${entry.date.toISOString().slice(0, 10)} but checkout is still missing`;
-            const existing = await prisma.attendanceException.findFirst({
+            const existing = await prisma_1.default.attendanceException.findFirst({
                 where: { employeeId: entry.employeeId, type: 'MISSING_CHECKOUT', message, resolved: false },
             });
             if (existing)
                 continue;
-            await prisma.attendanceException.create({ data: { employeeId: entry.employeeId, type: 'MISSING_CHECKOUT', message } });
+            await prisma_1.default.attendanceException.create({ data: { employeeId: entry.employeeId, type: 'MISSING_CHECKOUT', message } });
             createdExceptions++;
             await (0, mailService_1.notifyUser)(entry.employee.user.username, 'Missing checkout reminder', `${message}. Please submit an attendance correction if needed.`);
+            await (0, notificationService_1.notify)(entry.employee.user.id, '⚠️ Missing Checkout', `You didn't punch out on ${entry.date.toISOString().split('T')[0]}. Please submit a correction.`);
         }
         res.json({ openEntries: entries.length, createdExceptions });
     }
@@ -199,7 +203,7 @@ const attendance = async (req, res) => {
         const month = req.query.month;
         if (!employeeId || !month)
             throw new Error('employeeId and month are required');
-        res.json(await prisma.attendanceEntry.findMany({ where: { employeeId, date: { gte: (0, attendanceReportService_1.startOfMonth)(month), lt: (0, attendanceReportService_1.endOfMonth)(month) } }, orderBy: { date: 'asc' } }));
+        res.json(await prisma_1.default.attendanceEntry.findMany({ where: { employeeId, date: { gte: (0, attendanceReportService_1.startOfMonth)(month), lt: (0, attendanceReportService_1.endOfMonth)(month) } }, orderBy: { date: 'asc' } }));
     }
     catch (e) {
         res.status(400).json({ error: e.message });
@@ -225,10 +229,10 @@ const attendanceExport = async (req, res) => {
         const month = req.query.month;
         if (!employeeId || !month)
             throw new Error('employeeId and month are required');
-        const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { id: employeeId } });
         if (!employee)
             throw new Error('Employee not found');
-        const entries = await prisma.attendanceEntry.findMany({ where: { employeeId, date: { gte: (0, attendanceReportService_1.startOfMonth)(month), lt: (0, attendanceReportService_1.endOfMonth)(month) } }, orderBy: { date: 'asc' } });
+        const entries = await prisma_1.default.attendanceEntry.findMany({ where: { employeeId, date: { gte: (0, attendanceReportService_1.startOfMonth)(month), lt: (0, attendanceReportService_1.endOfMonth)(month) } }, orderBy: { date: 'asc' } });
         res.header('Content-Type', 'text/csv');
         res.attachment(`attendance-${employee.employeeNumber}-${month}.csv`);
         res.send((0, attendanceReportService_1.attendanceCsv)(employee, month, entries));
@@ -244,7 +248,7 @@ const attendanceReport = async (req, res) => {
         const month = req.query.month;
         if (!employeeId || !month)
             throw new Error('employeeId and month are required');
-        const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { id: employeeId } });
         if (!employee)
             throw new Error('Employee not found');
         const summary = await (0, attendanceReportService_1.monthSummary)(employeeId, month);
@@ -261,7 +265,7 @@ exports.attendanceReport = attendanceReport;
 // Leaves
 const pendingLeaveRequests = async (req, res) => {
     try {
-        const leaves = await prisma.leaveRequest.findMany({
+        const leaves = await prisma_1.default.leaveRequest.findMany({
             where: { status: 'PENDING' },
             include: { employee: true },
             orderBy: { createdAt: 'desc' }
@@ -294,7 +298,7 @@ exports.rejectLeaveRequest = rejectLeaveRequest;
 // Regularization
 const pendingRegularizations = async (req, res) => {
     try {
-        const reqs = await prisma.regularizationRequest.findMany({
+        const reqs = await prisma_1.default.regularizationRequest.findMany({
             where: { status: 'PENDING' },
             include: { employee: true },
             orderBy: { createdAt: 'desc' }
@@ -327,7 +331,7 @@ exports.rejectRegularization = rejectRegularization;
 // Work
 const pendingWorkRequests = async (req, res) => {
     try {
-        const reqs = await prisma.workRequest.findMany({
+        const reqs = await prisma_1.default.workRequest.findMany({
             where: { status: 'PENDING' },
             include: { employee: true },
             orderBy: { createdAt: 'desc' }
@@ -360,7 +364,7 @@ exports.rejectWorkRequest = rejectWorkRequest;
 // Comp Off
 const pendingCompOffs = async (req, res) => {
     try {
-        const reqs = await prisma.compOffRequest.findMany({
+        const reqs = await prisma_1.default.compOffRequest.findMany({
             where: { status: 'PENDING' },
             include: { employee: true },
             orderBy: { createdAt: 'desc' }
@@ -414,7 +418,7 @@ const saveAttendance = async (req, res) => {
         const outTime = timeDate(req.body.outTime);
         const minutes = workedMinutes(inTime, outTime);
         const status = inTime ? (minutes !== null && minutes < 240 ? 'HALF_DAY' : 'PRESENT') : 'ABSENT';
-        const saved = await prisma.attendanceEntry.upsert({
+        const saved = await prisma_1.default.attendanceEntry.upsert({
             where: { uk_attendance_emp_date: { employeeId, date } },
             update: { inTime, outTime, workedMinutes: minutes, leaveReason: req.body.leaveReason || null, status: status },
             create: { employeeId, date, inTime, outTime, workedMinutes: minutes, leaveReason: req.body.leaveReason || null, status: status },
@@ -438,7 +442,7 @@ const saveAttendanceRange = async (req, res) => {
         let updatedDays = 0;
         for (let date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
             const current = new Date(date);
-            await prisma.attendanceEntry.upsert({
+            await prisma_1.default.attendanceEntry.upsert({
                 where: { uk_attendance_emp_date: { employeeId, date: current } },
                 update: { inTime, outTime, workedMinutes: minutes, leaveReason: req.body.leaveReason || null, status: status },
                 create: { employeeId, date: current, inTime, outTime, workedMinutes: minutes, leaveReason: req.body.leaveReason || null, status: status },
@@ -454,7 +458,8 @@ const saveAttendanceRange = async (req, res) => {
 exports.saveAttendanceRange = saveAttendanceRange;
 const approveLeaveCancellation = async (req, res) => {
     try {
-        const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'CANCELLED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: true } });
+        const saved = await prisma_1.default.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'CANCELLED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: { include: { user: true } } } });
+        await (0, notificationService_1.notify)(saved.employee.user?.id, '✅ Leave Cancellation Approved', `Your request to cancel leave on ${saved.fromDate.toISOString().split('T')[0]} was approved.`);
         res.json(saved);
     }
     catch (error) {
@@ -464,7 +469,8 @@ const approveLeaveCancellation = async (req, res) => {
 exports.approveLeaveCancellation = approveLeaveCancellation;
 const rejectLeaveCancellation = async (req, res) => {
     try {
-        const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'APPROVED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: true } });
+        const saved = await prisma_1.default.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'APPROVED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: { include: { user: true } } } });
+        await (0, notificationService_1.notify)(saved.employee.user?.id, '❌ Leave Cancellation Rejected', `Your request to cancel leave on ${saved.fromDate.toISOString().split('T')[0]} was rejected.`);
         res.json(saved);
     }
     catch (error) {
@@ -472,11 +478,56 @@ const rejectLeaveCancellation = async (req, res) => {
     }
 };
 exports.rejectLeaveCancellation = rejectLeaveCancellation;
-const pendingDeviceRequests = async (req, res) => { res.json([]); };
+const pendingDeviceRequests = async (req, res) => {
+    try {
+        const pending = await prisma_1.default.deviceRequest.findMany({
+            where: { approved: false },
+            include: { employee: { include: { user: true } } }
+        });
+        const mapped = pending.map(item => ({
+            id: item.id,
+            username: item.employee?.user?.username || 'Unknown',
+            deviceId: item.deviceId,
+            label: item.label,
+            approved: item.approved,
+            createdAt: item.createdAt
+        }));
+        res.json(mapped);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 exports.pendingDeviceRequests = pendingDeviceRequests;
-const approveDeviceRequest = async (req, res) => { res.json({ ok: true, id: Number(req.params.id), approved: true }); };
+const approveDeviceRequest = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const dr = await prisma_1.default.deviceRequest.findUnique({ where: { id } });
+        if (!dr)
+            throw new Error('Device request not found');
+        await prisma_1.default.deviceRequest.update({ where: { id }, data: { approved: true } });
+        await (0, notificationService_1.notify)(dr.employeeId ? (await prisma_1.default.employee.findUnique({ where: { id: dr.employeeId } }))?.userId : null, '📱 Device Approved', `Your device ${dr.label} is now approved for punches.`);
+        res.json({ ok: true, id, approved: true });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 exports.approveDeviceRequest = approveDeviceRequest;
-const rejectDeviceRequest = async (req, res) => { res.json({ ok: true, id: Number(req.params.id), approved: false }); };
+const rejectDeviceRequest = async (req, res) => {
+    try {
+        const id = Number(req.params.id);
+        const dr = await prisma_1.default.deviceRequest.findUnique({ where: { id } });
+        await prisma_1.default.deviceRequest.delete({ where: { id } });
+        if (dr) {
+            await (0, notificationService_1.notify)(dr.employeeId ? (await prisma_1.default.employee.findUnique({ where: { id: dr.employeeId } }))?.userId : null, '❌ Device Rejected', `Your device ${dr.label} registration was rejected.`);
+        }
+        res.json({ ok: true, id, approved: false });
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
 exports.rejectDeviceRequest = rejectDeviceRequest;
 const uploadCompanyRolePhoto = async (req, res) => {
     try {
@@ -484,7 +535,7 @@ const uploadCompanyRolePhoto = async (req, res) => {
         if (!file)
             throw new Error('Photo file is required');
         const upload = await (0, cloudinaryService_1.uploadGroupPhoto)(file.buffer, `company-role-${req.params.id}`);
-        const saved = await prisma.companyRole.update({ where: { id: Number(req.params.id) }, data: { photoUrl: upload.url } });
+        const saved = await prisma_1.default.companyRole.update({ where: { id: Number(req.params.id) }, data: { photoUrl: upload.url } });
         res.json(saved);
     }
     catch (error) {

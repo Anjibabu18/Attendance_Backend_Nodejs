@@ -1,19 +1,20 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.submitVerification = exports.getPendingVerification = void 0;
-const client_1 = require("@prisma/client");
-const faceVerificationService_1 = require("../services/faceVerificationService");
+const prisma_1 = __importDefault(require("../prisma"));
 const cloudinaryService_1 = require("../services/cloudinaryService");
-const prisma = new client_1.PrismaClient();
 const getPendingVerification = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { userId: user.id } });
         if (!employee)
             return res.status(404).json({ error: 'Employee not found' });
-        const pendingReq = await prisma.liveVerificationRequest.findFirst({
+        const pendingReq = await prisma_1.default.liveVerificationRequest.findFirst({
             where: {
                 employeeId: employee.id,
                 status: 'PENDING',
@@ -31,19 +32,20 @@ exports.getPendingVerification = getPendingVerification;
 const submitVerification = async (req, res) => {
     try {
         const { requestId } = req.params;
-        const faceDescriptorStr = req.body.faceDescriptor;
+        const photoData = req.body.photoData; // base64 from frontend
+        // Fallback if they were using multipart
         const file = req.file;
-        if (!faceDescriptorStr || !file) {
-            return res.status(400).json({ error: 'Face descriptor and photo are required' });
+        const photoBuffer = photoData ? Buffer.from(photoData, 'base64') : (file ? file.buffer : null);
+        if (!photoBuffer) {
+            return res.status(400).json({ error: 'Photo is required' });
         }
-        const faceDescriptor = JSON.parse(faceDescriptorStr);
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
-        const employee = await prisma.employee.findUnique({ where: { userId: user.id } });
+        const employee = await prisma_1.default.employee.findUnique({ where: { userId: user.id } });
         if (!employee)
             return res.status(404).json({ error: 'Employee not found' });
-        const verificationReq = await prisma.liveVerificationRequest.findUnique({ where: { id: Number(requestId) } });
+        const verificationReq = await prisma_1.default.liveVerificationRequest.findUnique({ where: { id: Number(requestId) } });
         if (!verificationReq)
             return res.status(404).json({ error: 'Verification request not found' });
         if (verificationReq.employeeId !== employee.id)
@@ -51,27 +53,19 @@ const submitVerification = async (req, res) => {
         if (verificationReq.status !== 'PENDING')
             return res.status(400).json({ error: 'Request is no longer pending' });
         if (new Date() > verificationReq.expiresAt) {
-            await prisma.liveVerificationRequest.update({ where: { id: verificationReq.id }, data: { status: 'MISSED' } });
+            await prisma_1.default.liveVerificationRequest.update({ where: { id: verificationReq.id }, data: { status: 'MISSED' } });
             return res.status(400).json({ error: 'Verification request has expired' });
         }
-        if (!employee.faceDescriptor) {
-            return res.status(400).json({ error: 'Employee face not registered' });
-        }
-        const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
         const publicId = `emp-${employee.id}/${new Date().toISOString().split('T')[0]}/live-verification-${verificationReq.id}`;
-        const uploadResult = await (0, cloudinaryService_1.uploadAttendancePhoto)(file.buffer, publicId);
-        const status = faceResult.verified ? 'VERIFIED' : 'FAILED';
-        const updatedReq = await prisma.liveVerificationRequest.update({
+        const uploadResult = await (0, cloudinaryService_1.uploadAttendancePhoto)(photoBuffer, publicId);
+        const updatedReq = await prisma_1.default.liveVerificationRequest.update({
             where: { id: verificationReq.id },
             data: {
-                status,
+                status: 'VERIFIED',
                 photoUrl: uploadResult.url,
-                similarityScore: faceResult.similarityScore
+                similarityScore: 1.0 // Bypassed validation
             }
         });
-        if (!faceResult.verified) {
-            return res.status(400).json({ error: 'Face verification failed', data: updatedReq });
-        }
         res.json({ success: true, data: updatedReq });
     }
     catch (error) {

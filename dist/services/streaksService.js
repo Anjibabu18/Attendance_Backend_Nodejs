@@ -1,13 +1,15 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getEmployeeStreaks = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../prisma"));
 const getEmployeeStreaks = async (employeeId) => {
     const now = new Date();
     const yearStart = new Date(`${now.getFullYear()}-01-01T00:00:00Z`);
     // Fetch all entries for the current year, sorted desc by date
-    const entries = await prisma.attendanceEntry.findMany({
+    const entries = await prisma_1.default.attendanceEntry.findMany({
         where: {
             employeeId,
             date: { gte: yearStart },

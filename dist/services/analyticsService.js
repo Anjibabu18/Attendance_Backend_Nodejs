@@ -1,19 +1,21 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.monthAnalytics = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../prisma"));
 const monthAnalytics = async (yearMonth) => {
     // yearMonth format: 'YYYY-MM'
     const startDate = new Date(`${yearMonth}-01T00:00:00Z`);
     const endDate = new Date(startDate);
     endDate.setUTCMonth(endDate.getUTCMonth() + 1);
     const [entries, employees] = await Promise.all([
-        prisma.attendanceEntry.findMany({
+        prisma_1.default.attendanceEntry.findMany({
             where: { date: { gte: startDate, lt: endDate } },
             include: { employee: { include: { department: true, assignedOfficeLocation: true } } },
         }),
-        prisma.employee.findMany({ include: { assignedOfficeLocation: true } }),
+        prisma_1.default.employee.findMany({ include: { assignedOfficeLocation: true } }),
     ]);
     const present = entries.filter(e => e.status === 'PRESENT').length;
     const half = entries.filter(e => e.status === 'HALF_DAY').length;

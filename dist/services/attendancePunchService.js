@@ -1,12 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkOut = exports.checkIn = exports.evaluatePlace = exports.distanceMeters = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const cloudinaryService_1 = require("./cloudinaryService");
-const faceVerificationService_1 = require("./faceVerificationService");
 const attendanceReportService_1 = require("./attendanceReportService");
 const auditService_1 = require("./auditService");
-const prisma = new client_1.PrismaClient();
+const notificationService_1 = require("./notificationService");
 const validateCoordinates = (latitude, longitude) => {
     if (isNaN(latitude) || latitude < -90 || latitude > 90) {
         throw new Error('latitude must be between -90 and 90');
@@ -31,10 +33,10 @@ const evaluatePlace = async (employee, latitude, longitude) => {
     validateCoordinates(latitude, longitude);
     let office = null;
     if (employee.assignedOfficeLocationId) {
-        office = await prisma.officeLocation.findUnique({ where: { id: employee.assignedOfficeLocationId } });
+        office = await prisma_1.default.officeLocation.findUnique({ where: { id: Number(employee.assignedOfficeLocationId) } });
     }
     if (!office || !office.active) {
-        office = await prisma.officeLocation.findFirst({ where: { active: true } });
+        office = await prisma_1.default.officeLocation.findFirst({ where: { active: true } });
     }
     if (!office) {
         throw new Error('No active office location found');
@@ -67,7 +69,7 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     await (0, attendanceReportService_1.assertPayrollUnlocked)(today.toISOString().slice(0, 7));
-    const existing = await prisma.attendanceEntry.findFirst({
+    const existing = await prisma_1.default.attendanceEntry.findFirst({
         where: { employeeId: employee.id, date: today },
     });
     if (existing && existing.inTime) {
@@ -76,29 +78,15 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
     let uploadUrl = null;
     let faceScore = null;
     let faceVerified = true; // Default true for hardware
-    if (!isHardware && !employee.faceDescriptor) {
-        throw new Error('Face registration required before punching. Please register Face AI first.');
-    }
-    if (!isHardware && !faceDescriptor) {
-        throw new Error('Live face verification is required for punch.');
-    }
-    if (!isHardware && photoBuffer && faceDescriptor) {
-        // Face Verification using Descriptor
-        const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
-        if (!faceResult.verified) {
-            await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, action: 'CHECK_IN', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
-            throw new Error(`Face verification failed: ${faceResult.message}`);
-        }
-        faceScore = faceResult.similarityScore;
-        faceVerified = faceResult.verified;
-        // Upload to Cloudinary
+    if (!isHardware && photoBuffer) {
+        // Upload to Cloudinary without Face AI validation
         const publicId = `emp-${employee.id}/${today.toISOString().split('T')[0]}/checkin`;
         const uploadResult = await (0, cloudinaryService_1.uploadAttendancePhoto)(photoBuffer, publicId);
         uploadUrl = uploadResult.url;
     }
     const now = new Date();
     // Create or Update Attendance Entry
-    const entry = await prisma.attendanceEntry.upsert({
+    const entry = await prisma_1.default.attendanceEntry.upsert({
         where: {
             uk_attendance_emp_date: { employeeId: employee.id, date: today }
         },
@@ -130,7 +118,7 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
     }
     // IMPOSSIBLE TRAVEL / FRAUD DETECTION
     try {
-        const lastEntry = await prisma.attendanceEntry.findFirst({
+        const lastEntry = await prisma_1.default.attendanceEntry.findFirst({
             where: { employeeId: employee.id, id: { not: entry.id }, OR: [{ inTime: { not: null } }, { outTime: { not: null } }] },
             orderBy: { date: 'desc' }
         });
@@ -144,13 +132,14 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
                 if (hoursDelta > 0 && hoursDelta < 24) { // Only check if within 24 hours
                     const speedKmh = (dist / 1000) / hoursDelta;
                     if (speedKmh > 800) { // Commercial airliner speed
-                        await prisma.attendanceException.create({
+                        await prisma_1.default.attendanceException.create({
                             data: {
                                 employeeId: employee.id,
                                 type: 'IMPOSSIBLE_TRAVEL',
                                 message: `Fraud alert: Device moved ${Math.round(dist / 1000)}km in ${hoursDelta.toFixed(1)} hours (${Math.round(speedKmh)} km/h).`
                             }
                         });
+                        (0, notificationService_1.notifyAllHr)('⚠️ Fraud Alert', `Impossible travel detected for ${employee.name || 'Employee #' + employee.id}: ${Math.round(dist / 1000)}km in ${hoursDelta.toFixed(1)}h (${Math.round(speedKmh)} km/h).`).catch(() => { });
                     }
                 }
             }
@@ -159,6 +148,9 @@ const checkIn = async (employee, latitude, longitude, photoBuffer, faceDescripto
     catch (err) {
         console.error("Fraud detection error", err);
     }
+    // Notify employee of successful check-in
+    const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    (0, notificationService_1.notify)(employee.userId, '✅ Punched In', `You checked in at ${timeStr}. Have a great day!`).catch(() => { });
     return entry;
 };
 exports.checkIn = checkIn;
@@ -172,7 +164,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
     await (0, attendanceReportService_1.assertPayrollUnlocked)(today.toISOString().slice(0, 7));
-    const existing = await prisma.attendanceEntry.findFirst({
+    const existing = await prisma_1.default.attendanceEntry.findFirst({
         where: { employeeId: employee.id, date: today },
     });
     if (!existing || !existing.inTime) {
@@ -184,22 +176,8 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     let uploadUrl = null;
     let faceScore = null;
     let faceVerified = true;
-    if (!isHardware && !employee.faceDescriptor) {
-        throw new Error('Face registration required before punching. Please register Face AI first.');
-    }
-    if (!isHardware && !faceDescriptor) {
-        throw new Error('Live face verification is required for punch.');
-    }
-    if (!isHardware && photoBuffer && faceDescriptor) {
-        // Face Verification using Descriptor
-        const faceResult = await (0, faceVerificationService_1.verifyFace)(employee.faceDescriptor, faceDescriptor);
-        if (!faceResult.verified) {
-            await (0, auditService_1.logFaceVerification)({ employeeId: employee.id, action: 'CHECK_OUT', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
-            throw new Error(`Face verification failed: ${faceResult.message}`);
-        }
-        faceScore = faceResult.similarityScore;
-        faceVerified = faceResult.verified;
-        // Upload to Cloudinary
+    if (!isHardware && photoBuffer) {
+        // Upload to Cloudinary without Face AI validation
         const publicId = `emp-${employee.id}/${today.toISOString().split('T')[0]}/checkout`;
         const uploadResult = await (0, cloudinaryService_1.uploadAttendancePhoto)(photoBuffer, publicId);
         uploadUrl = uploadResult.url;
@@ -208,7 +186,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     // Calculate worked minutes roughly
     const workedMinutes = Math.floor((now.getTime() - existing.inTime.getTime()) / 60000);
     // Determine Status based on worked minutes
-    const settings = await prisma.attendanceSettings.findFirst() || {
+    const settings = await prisma_1.default.attendanceSettings.findFirst() || {
         fullDayMinutes: 480,
         halfDayMinutes: 240,
         earlyLeaveGraceMinutes: 10
@@ -220,7 +198,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     else if (workedMinutes < (settings.fullDayMinutes - settings.earlyLeaveGraceMinutes)) {
         newStatus = 'HALF_DAY';
     }
-    const entry = await prisma.attendanceEntry.update({
+    const entry = await prisma_1.default.attendanceEntry.update({
         where: { id: existing.id },
         data: {
             outTime: now,
@@ -239,7 +217,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     }
     // IMPOSSIBLE TRAVEL / FRAUD DETECTION
     try {
-        const lastEntry = await prisma.attendanceEntry.findFirst({
+        const lastEntry = await prisma_1.default.attendanceEntry.findFirst({
             where: { employeeId: employee.id, OR: [{ inTime: { not: null } }, { outTime: { not: null } }] },
             orderBy: { date: 'desc' } // Wait, for checkOut, the last punch is the checkIn of the same day.
         });
@@ -253,13 +231,14 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
             if (hoursDelta > 0 && hoursDelta < 24) {
                 const speedKmh = (dist / 1000) / hoursDelta;
                 if (speedKmh > 800) {
-                    await prisma.attendanceException.create({
+                    await prisma_1.default.attendanceException.create({
                         data: {
                             employeeId: employee.id,
                             type: 'IMPOSSIBLE_TRAVEL',
                             message: `Fraud alert: Device moved ${Math.round(dist / 1000)}km in ${hoursDelta.toFixed(1)} hours (${Math.round(speedKmh)} km/h) since check-in.`
                         }
                     });
+                    (0, notificationService_1.notifyAllHr)('⚠️ Fraud Alert', `Impossible travel on checkout for ${employee.name || 'Employee #' + employee.id}: ${Math.round(dist / 1000)}km in ${hoursDelta.toFixed(1)}h since check-in.`).catch(() => { });
                 }
             }
         }
@@ -267,6 +246,11 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     catch (err) {
         console.error("Fraud detection error", err);
     }
+    // Notify employee of successful check-out
+    const hrs = Math.floor(workedMinutes / 60);
+    const mins = workedMinutes % 60;
+    const outTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    (0, notificationService_1.notify)(employee.userId, '✅ Punched Out', `You checked out at ${outTimeStr}. Today\'s work: ${hrs}h ${mins}m.`).catch(() => { });
     return entry;
 };
 exports.checkOut = checkOut;

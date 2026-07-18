@@ -39,10 +39,7 @@ export const notify = async (userId: number | undefined | null, title: string, m
       title,
       body: message,
       icon: '/pwa-192x192.png',
-      url: '/employee',
-      actions: [
-        { action: 'open', title: 'View Details' }
-      ]
+      url: '/employee'
     });
   } catch (err) {
     console.error(`[Notify] Failed to send push to user ${userId}:`, err);

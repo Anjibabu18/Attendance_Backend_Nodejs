@@ -1,10 +1,45 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.endBreak = exports.startBreak = exports.todayBreaks = exports.today = exports.postCheckOut = exports.postCheckIn = exports.device = exports.qr = exports.place = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const attendancePunchService_1 = require("../services/attendancePunchService");
 const qrService_1 = require("../services/qrService");
-const prisma = new client_1.PrismaClient();
 const isMissingBreakTable = (error) => error?.code === 'P2021' || String(error?.message || '').includes('break_entries') || String(error?.message || '').includes('does not exist');
 const readCoordinate = (source, primary, fallback) => {
     const value = source?.[primary] ?? source?.[fallback];
@@ -29,7 +64,7 @@ const verifyInternalDailyQrCode = async (qrData) => {
     return resp;
 };
 const currentEmployee = async (userId) => {
-    const employee = await prisma.employee.findUnique({
+    const employee = await prisma_1.default.employee.findUnique({
         where: { userId },
     });
     if (!employee) {
@@ -43,7 +78,7 @@ const place = async (req, res) => {
         const longitude = readCoordinate(req.query, 'longitude', 'lng');
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude))
             return res.status(400).json({ error: 'Could not read device GPS. Please allow location access and retry.' });
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
@@ -107,7 +142,7 @@ const postCheckIn = async (req, res) => {
         } // multer populates this
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
         let auditOfficeId = null;
-        const settings = await prisma.attendanceSettings.findFirst();
+        const settings = await prisma_1.default.attendanceSettings.findFirst();
         if (settings?.requireQrForPunch) {
             if (!qrTokenStr) {
                 return res.status(400).json({ error: 'QR token is required for punch-in' });
@@ -116,10 +151,18 @@ const postCheckIn = async (req, res) => {
             await verifyInternalDailyQrCode(qrData);
             auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         }
-        if (!file) {
+        const photoBase64 = req.body.photoBase64;
+        let photoBuffer;
+        if (file) {
+            photoBuffer = file.buffer;
+        }
+        else if (photoBase64) {
+            photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+        }
+        if (!photoBuffer) {
             return res.status(400).json({ error: 'Selfie photo is required for punch' });
         }
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
@@ -128,8 +171,8 @@ const postCheckIn = async (req, res) => {
             assertQrBelongsToEmployeeOffice(employee, qrData);
         }
         if (employee.assignedOfficeLocationId) {
-            const location = await prisma.officeLocation.findUnique({
-                where: { id: employee.assignedOfficeLocationId }
+            const location = await prisma_1.default.officeLocation.findUnique({
+                where: { id: Number(employee.assignedOfficeLocationId) }
             });
             if (location && location.officeIpAddress) {
                 const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -139,8 +182,17 @@ const postCheckIn = async (req, res) => {
                 }
             }
         }
-        const entry = await (0, attendancePunchService_1.checkIn)(employee, latitude, longitude, file.buffer, faceDescriptor);
-        res.json(entry);
+        const { getEmployeeStreaks } = await Promise.resolve().then(() => __importStar(require('../services/streaksService')));
+        const oldStreaks = await getEmployeeStreaks(employee.id);
+        const entry = await (0, attendancePunchService_1.checkIn)(employee, latitude, longitude, photoBuffer, null);
+        const newStreaks = await getEmployeeStreaks(employee.id);
+        const newBadgesEarned = newStreaks.badges.filter(b => !oldStreaks.badges.includes(b));
+        res.json({
+            ...entry,
+            streak: newStreaks.currentStreak,
+            newBadgesEarned,
+            isNewStreak: newStreaks.currentStreak > oldStreaks.currentStreak
+        });
     }
     catch (error) {
         res.status(400).json({ error: error.message });
@@ -164,7 +216,7 @@ const postCheckOut = async (req, res) => {
         }
         await (0, qrService_1.validateApprovedDevice)(req.user.username, deviceId);
         let auditOfficeId = null;
-        const settings = await prisma.attendanceSettings.findFirst();
+        const settings = await prisma_1.default.attendanceSettings.findFirst();
         if (settings?.requireQrForPunch) {
             if (!qrTokenStr) {
                 return res.status(400).json({ error: 'QR token is required for punch-out' });
@@ -173,10 +225,18 @@ const postCheckOut = async (req, res) => {
             await verifyInternalDailyQrCode(qrData);
             auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
         }
-        if (!file) {
+        const photoBase64 = req.body.photoBase64;
+        let photoBuffer;
+        if (file) {
+            photoBuffer = file.buffer;
+        }
+        else if (photoBase64) {
+            photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+        }
+        if (!photoBuffer) {
             return res.status(400).json({ error: 'Selfie photo is required for punch' });
         }
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
@@ -185,8 +245,8 @@ const postCheckOut = async (req, res) => {
             assertQrBelongsToEmployeeOffice(employee, qrData);
         }
         if (employee.assignedOfficeLocationId) {
-            const location = await prisma.officeLocation.findUnique({
-                where: { id: employee.assignedOfficeLocationId }
+            const location = await prisma_1.default.officeLocation.findUnique({
+                where: { id: Number(employee.assignedOfficeLocationId) }
             });
             if (location && location.officeIpAddress) {
                 const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
@@ -196,7 +256,7 @@ const postCheckOut = async (req, res) => {
                 }
             }
         }
-        const entry = await (0, attendancePunchService_1.checkOut)(employee, latitude, longitude, file.buffer, faceDescriptor);
+        const entry = await (0, attendancePunchService_1.checkOut)(employee, latitude, longitude, photoBuffer, null);
         res.json(entry);
     }
     catch (error) {
@@ -206,13 +266,13 @@ const postCheckOut = async (req, res) => {
 exports.postCheckOut = postCheckOut;
 const today = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
         const todayDate = new Date();
         todayDate.setUTCHours(0, 0, 0, 0);
-        const entry = await prisma.attendanceEntry.findFirst({
+        const entry = await prisma_1.default.attendanceEntry.findFirst({
             where: { employeeId: employee.id, date: todayDate },
         });
         if (!entry)
@@ -221,8 +281,8 @@ const today = async (req, res) => {
         res.json({
             ...entry,
             date: entry.date instanceof Date ? entry.date.toISOString().slice(0, 10) : String(entry.date).slice(0, 10),
-            inTime: entry.inTime instanceof Date ? entry.inTime.toISOString().slice(11, 19) : (entry.inTime ? String(entry.inTime).slice(11, 19) : null),
-            outTime: entry.outTime instanceof Date ? entry.outTime.toISOString().slice(11, 19) : (entry.outTime ? String(entry.outTime).slice(11, 19) : null),
+            inTime: entry.inTime instanceof Date ? entry.inTime.toISOString() : (entry.inTime ? String(entry.inTime) : null),
+            outTime: entry.outTime instanceof Date ? entry.outTime.toISOString() : (entry.outTime ? String(entry.outTime) : null),
         });
     }
     catch (error) {
@@ -232,13 +292,13 @@ const today = async (req, res) => {
 exports.today = today;
 const todayBreaks = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
         const todayDate = new Date();
         todayDate.setUTCHours(0, 0, 0, 0);
-        const breaks = await prisma.breakEntry.findMany({
+        const breaks = await prisma_1.default.breakEntry.findMany({
             where: { employeeId: employee.id, date: todayDate },
             orderBy: { startTime: 'asc' }
         });
@@ -253,25 +313,25 @@ const todayBreaks = async (req, res) => {
 exports.todayBreaks = todayBreaks;
 const startBreak = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
         const todayDate = new Date();
         todayDate.setUTCHours(0, 0, 0, 0);
-        const attendance = await prisma.attendanceEntry.findFirst({
+        const attendance = await prisma_1.default.attendanceEntry.findFirst({
             where: { employeeId: employee.id, date: todayDate }
         });
         if (!attendance || !attendance.inTime) {
             return res.status(400).json({ error: 'Must punch in before taking a break' });
         }
-        const activeBreak = await prisma.breakEntry.findFirst({
+        const activeBreak = await prisma_1.default.breakEntry.findFirst({
             where: { employeeId: employee.id, date: todayDate, endTime: null }
         });
         if (activeBreak) {
             return res.status(400).json({ error: 'Already on a break' });
         }
-        const breakEntry = await prisma.breakEntry.create({
+        const breakEntry = await prisma_1.default.breakEntry.create({
             data: {
                 employeeId: employee.id,
                 date: todayDate,
@@ -289,13 +349,13 @@ const startBreak = async (req, res) => {
 exports.startBreak = startBreak;
 const endBreak = async (req, res) => {
     try {
-        const user = await prisma.appUser.findUnique({ where: { username: req.user.username } });
+        const user = await prisma_1.default.appUser.findUnique({ where: { username: req.user.username } });
         if (!user)
             return res.status(401).json({ error: 'User not found' });
         const employee = await currentEmployee(user.id);
         const todayDate = new Date();
         todayDate.setUTCHours(0, 0, 0, 0);
-        const activeBreak = await prisma.breakEntry.findFirst({
+        const activeBreak = await prisma_1.default.breakEntry.findFirst({
             where: { employeeId: employee.id, date: todayDate, endTime: null }
         });
         if (!activeBreak) {
@@ -303,7 +363,7 @@ const endBreak = async (req, res) => {
         }
         const endTime = new Date();
         const durationMinutes = Math.round((endTime.getTime() - activeBreak.startTime.getTime()) / 60000);
-        const updatedBreak = await prisma.breakEntry.update({
+        const updatedBreak = await prisma_1.default.breakEntry.update({
             where: { id: activeBreak.id },
             data: { endTime, durationMinutes }
         });

@@ -4,10 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startPushReminderJobs = startPushReminderJobs;
+const prisma_1 = __importDefault(require("../prisma"));
 const node_cron_1 = __importDefault(require("node-cron"));
-const client_1 = require("@prisma/client");
-const pushService_1 = require("../services/pushService");
-const prisma = new client_1.PrismaClient();
+const notificationService_1 = require("../services/notificationService");
 /**
  * Push Notification Reminder Job
  *
@@ -21,7 +20,7 @@ function startPushReminderJobs() {
     // Check every minute and compare against attendance settings
     node_cron_1.default.schedule('* * * * *', async () => {
         try {
-            const settings = await prisma.attendanceSettings.findFirst();
+            const settings = await prisma_1.default.attendanceSettings.findFirst();
             if (!settings)
                 return;
             const now = new Date();
@@ -46,12 +45,12 @@ function startPushReminderJobs() {
             if (currentHour === reminderInHour && currentMinute === reminderInMinute) {
                 console.log('[PushJob] Sending punch-in reminders...');
                 // Get all active employees
-                const employees = await prisma.employee.findMany({
+                const employees = await prisma_1.default.employee.findMany({
                     where: { status: 'ACTIVE' },
                     include: { user: true },
                 });
                 // Get today's attendance entries
-                const entries = await prisma.attendanceEntry.findMany({
+                const entries = await prisma_1.default.attendanceEntry.findMany({
                     where: { date: today },
                     select: { employeeId: true },
                 });
@@ -60,17 +59,9 @@ function startPushReminderJobs() {
                 let sentCount = 0;
                 for (const emp of employees) {
                     if (!punchedInIds.has(emp.id)) {
-                        // Check if user has push subscriptions
-                        const subCount = await prisma.pushSubscription.count({ where: { userId: emp.userId } });
-                        if (subCount > 0) {
-                            await (0, pushService_1.sendPushToUser)(emp.userId, {
-                                title: '⏰ Punch-In Reminder',
-                                body: `Good morning! Don't forget to punch in. Office hours start at ${formatTime(inHour, inMinute)}.`,
-                                icon: '/favicon.ico',
-                                url: '/employee',
-                            }).catch((err) => console.error(`[PushJob] Failed to send to user ${emp.userId}:`, err));
-                            sentCount++;
-                        }
+                        await (0, notificationService_1.notify)(emp.userId, '⏰ Punch-In Reminder', `Good morning! Don't forget to punch in. Office hours start at ${formatTime(inHour, inMinute)}.`)
+                            .catch((err) => console.error(`[PushJob] Failed to notify user ${emp.userId}:`, err));
+                        sentCount++;
                     }
                 }
                 console.log(`[PushJob] Sent ${sentCount} punch-in reminders.`);
@@ -79,7 +70,7 @@ function startPushReminderJobs() {
             if (currentHour === reminderOutHour && currentMinute === finalOutMinute) {
                 console.log('[PushJob] Sending punch-out reminders...');
                 // Get today's entries where employee punched in but NOT out
-                const entries = await prisma.attendanceEntry.findMany({
+                const entries = await prisma_1.default.attendanceEntry.findMany({
                     where: {
                         date: today,
                         inTime: { not: null },
@@ -93,16 +84,9 @@ function startPushReminderJobs() {
                 });
                 let sentCount = 0;
                 for (const entry of entries) {
-                    const subCount = await prisma.pushSubscription.count({ where: { userId: entry.employee.userId } });
-                    if (subCount > 0) {
-                        await (0, pushService_1.sendPushToUser)(entry.employee.userId, {
-                            title: '🏠 Punch-Out Reminder',
-                            body: `Did you leave? Remember to punch out! Office hours ended at ${formatTime(outHour, outMinute)}.`,
-                            icon: '/favicon.ico',
-                            url: '/employee',
-                        }).catch((err) => console.error(`[PushJob] Failed to send to user ${entry.employee.userId}:`, err));
-                        sentCount++;
-                    }
+                    await (0, notificationService_1.notify)(entry.employee.userId, '🏠 Punch-Out Reminder', `Did you leave? Remember to punch out! Office hours ended at ${formatTime(outHour, outMinute)}.`)
+                        .catch((err) => console.error(`[PushJob] Failed to notify user ${entry.employee.userId}:`, err));
+                    sentCount++;
                 }
                 console.log(`[PushJob] Sent ${sentCount} punch-out reminders.`);
             }

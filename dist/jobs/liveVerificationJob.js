@@ -4,16 +4,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.startLiveVerificationCronJob = exports.runLiveVerificationJob = void 0;
+const prisma_1 = __importDefault(require("../prisma"));
 const node_cron_1 = __importDefault(require("node-cron"));
-const client_1 = require("@prisma/client");
-const pushService_1 = require("../services/pushService");
-const prisma = new client_1.PrismaClient();
+const notificationService_1 = require("../services/notificationService");
 const runLiveVerificationJob = async () => {
     try {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         // Find all active employees who are currently checked in (but not out)
-        const activeEntries = await prisma.attendanceEntry.findMany({
+        const activeEntries = await prisma_1.default.attendanceEntry.findMany({
             where: {
                 date: today,
                 inTime: { not: null },
@@ -39,7 +38,7 @@ const runLiveVerificationJob = async () => {
         const selectedEntries = shuffled.slice(0, selectionCount);
         for (const entry of selectedEntries) {
             // Check if they already have an active request
-            const existingReq = await prisma.liveVerificationRequest.findFirst({
+            const existingReq = await prisma_1.default.liveVerificationRequest.findFirst({
                 where: {
                     employeeId: entry.employeeId,
                     status: 'PENDING',
@@ -49,7 +48,7 @@ const runLiveVerificationJob = async () => {
             if (!existingReq) {
                 const now = new Date();
                 const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
-                const newReq = await prisma.liveVerificationRequest.create({
+                const newReq = await prisma_1.default.liveVerificationRequest.create({
                     data: {
                         employeeId: entry.employeeId,
                         date: today,
@@ -60,11 +59,7 @@ const runLiveVerificationJob = async () => {
                 });
                 // Send Push Notification
                 try {
-                    await (0, pushService_1.sendPushToUser)(entry.employee.user.id, {
-                        title: 'Security Check: Live Verification',
-                        body: 'Please verify your face within the next 10 minutes to maintain your active shift.',
-                        url: '/employee/dashboard',
-                    });
+                    await (0, notificationService_1.notify)(entry.employee.user.id, '🔒 Live Verification Required', 'Please verify your face within the next 10 minutes to maintain your active shift.');
                 }
                 catch (e) {
                     console.error('Failed to send verification push', e);

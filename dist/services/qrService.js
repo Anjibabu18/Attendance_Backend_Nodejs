@@ -32,11 +32,13 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateApprovedDevice = exports.deviceApproved = exports.qrResponse = exports.validateQr = exports.internalDailyCodeForQr = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../prisma"));
 const crypto = __importStar(require("crypto"));
-const prisma = new client_1.PrismaClient();
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const internalDailyCodeForQr = (token) => {
     const digest = crypto
@@ -62,7 +64,7 @@ const validateQr = async (token) => {
             // ignore
         }
     }
-    const qrToken = await prisma.officeQrToken.findUnique({
+    const qrToken = await prisma_1.default.officeQrToken.findUnique({
         where: { token: actualToken },
         include: { officeLocation: true },
     });
@@ -93,23 +95,26 @@ exports.qrResponse = qrResponse;
 const deviceApproved = async (username, deviceId) => {
     if (!deviceId)
         return false;
-    const user = await prisma.appUser.findUnique({
+    const user = await prisma_1.default.appUser.findUnique({
         where: { username },
         include: { employee: true }
     });
     if (!user || !user.employee)
         return false;
     const employee = user.employee;
-    // If fingerprint is not set, bind the device automatically
-    if (!employee.deviceFingerprint) {
-        await prisma.employee.update({
-            where: { id: employee.id },
-            data: { deviceFingerprint: deviceId }
-        });
+    // Backward compatibility: check if it matches the legacy single fingerprint
+    if (employee.deviceFingerprint === deviceId) {
         return true;
     }
-    // Return true if the requested deviceId matches the stored fingerprint
-    return employee.deviceFingerprint === deviceId;
+    // Check the new DeviceRequest table for an approved row for this device
+    const approvedReq = await prisma_1.default.deviceRequest.findFirst({
+        where: {
+            employeeId: employee.id,
+            deviceId: deviceId,
+            approved: true
+        }
+    });
+    return !!approvedReq;
 };
 exports.deviceApproved = deviceApproved;
 const validateApprovedDevice = async (username, deviceId) => {
