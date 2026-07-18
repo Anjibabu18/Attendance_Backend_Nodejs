@@ -157,7 +157,7 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkIn(employee, latitude, longitude, photoBuffer, faceDescriptor);
+    const entry = await checkIn(employee, latitude, longitude, photoBuffer, null);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -226,7 +226,7 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkOut(employee, latitude, longitude, photoBuffer, faceDescriptor);
+    const entry = await checkOut(employee, latitude, longitude, photoBuffer, null);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
