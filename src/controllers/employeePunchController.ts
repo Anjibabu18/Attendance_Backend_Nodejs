@@ -123,7 +123,15 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
       auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
     }
 
-    if (!file) {
+        const photoBase64 = req.body.photoBase64;
+    let photoBuffer;
+    if (file) {
+      photoBuffer = file.buffer;
+    } else if (photoBase64) {
+      photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+    }
+
+    if (!photoBuffer) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
     }
 
@@ -184,7 +192,15 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
       auditOfficeId = qrData.officeLocationId ?? qrData.officeLocation?.id ?? null;
     }
 
-    if (!file) {
+        const photoBase64 = req.body.photoBase64;
+    let photoBuffer;
+    if (file) {
+      photoBuffer = file.buffer;
+    } else if (photoBase64) {
+      photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+    }
+
+    if (!photoBuffer) {
       return res.status(400).json({ error: 'Selfie photo is required for punch' });
     }
 
