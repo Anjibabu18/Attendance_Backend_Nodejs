@@ -110,10 +110,6 @@ app.get('/api/holidays', async (req, res) => {
   try {
     const month = req.query.month as string | undefined;
     const start = month ? new Date(`${month}-01T00:00:00Z`) : null;
-app.get('/api/holidays', async (req, res) => {
-  try {
-    const month = req.query.month as string | undefined;
-    const start = month ? new Date(`${month}-01T00:00:00Z`) : null;
     const end = start ? new Date(start) : null;
     if (end) end.setUTCMonth(end.getUTCMonth() + 1);
     const where = start && end ? { date: { gte: start, lt: end } } : {};
