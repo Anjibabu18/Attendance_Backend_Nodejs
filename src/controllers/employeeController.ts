@@ -25,7 +25,14 @@ export const profile = async (req: AuthRequest, res: Response) => {
 export const uploadProfilePhoto = async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
-    if (!file) return res.status(400).json({ error: 'Photo file is required' });
+    const photoBase64 = req.body.photoBase64;
+    let photoBuffer: Buffer | undefined;
+    if (file) {
+      photoBuffer = file.buffer;
+    } else if (photoBase64) {
+      photoBuffer = Buffer.from(photoBase64.replace(/^data:image\/\w+;base64,/, ""), 'base64');
+    }
+    if (!photoBuffer) return res.status(400).json({ error: 'Photo file is required' });
 
     const user = await prisma.appUser.findUnique({ where: { username: req.user!.username } });
     if (!user) return res.status(401).json({ error: 'User not found' });
@@ -36,7 +43,7 @@ export const uploadProfilePhoto = async (req: AuthRequest, res: Response) => {
     // Note: Java code used FaceVerificationService to detect exactly 1 face.
     // For brevity, we bypass the face detection step here, but it would go here.
 
-    const upload = await uploadGroupPhoto(file.buffer, `employee-profile-${employee.id}`);
+    const upload = await uploadGroupPhoto(photoBuffer, `employee-profile-${employee.id}`);
     
     await prisma.employee.update({
       where: { id: employee.id },

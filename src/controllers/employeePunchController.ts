@@ -149,7 +149,7 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkIn(employee, latitude, longitude, file.buffer, faceDescriptor);
+    const entry = await checkIn(employee, latitude, longitude, photoBuffer, faceDescriptor);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -210,7 +210,7 @@ export const postCheckOut = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const entry = await checkOut(employee, latitude, longitude, file.buffer, faceDescriptor);
+    const entry = await checkOut(employee, latitude, longitude, photoBuffer, faceDescriptor);
     res.json(entry);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
