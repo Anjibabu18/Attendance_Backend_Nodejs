@@ -99,25 +99,8 @@ export const checkIn = async (
   let faceScore = null;
   let faceVerified = true; // Default true for hardware
 
-  if (!isHardware && !employee.faceDescriptor) {
-    throw new Error('Face registration required before punching. Please register Face AI first.');
-  }
-
-  if (!isHardware && !faceDescriptor) {
-    throw new Error('Live face verification is required for punch.');
-  }
-
-  if (!isHardware && photoBuffer && faceDescriptor) {
-    // Face Verification using Descriptor
-    const faceResult = await verifyFace(employee.faceDescriptor as any, faceDescriptor);
-    if (!faceResult.verified) {
-      await logFaceVerification({ employeeId: employee.id, action: 'CHECK_IN', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
-      throw new Error(`Face verification failed: ${faceResult.message}`);
-    }
-    faceScore = faceResult.similarityScore;
-    faceVerified = faceResult.verified;
-
-    // Upload to Cloudinary
+  if (!isHardware && photoBuffer) {
+    // Upload to Cloudinary without Face AI validation
     const publicId = `emp-${employee.id}/${today.toISOString().split('T')[0]}/checkin`;
     const uploadResult = await uploadAttendancePhoto(photoBuffer, publicId);
     uploadUrl = uploadResult.url;
@@ -227,25 +210,8 @@ export const checkOut = async (
   let faceScore = null;
   let faceVerified = true;
 
-  if (!isHardware && !employee.faceDescriptor) {
-    throw new Error('Face registration required before punching. Please register Face AI first.');
-  }
-
-  if (!isHardware && !faceDescriptor) {
-    throw new Error('Live face verification is required for punch.');
-  }
-
-  if (!isHardware && photoBuffer && faceDescriptor) {
-    // Face Verification using Descriptor
-    const faceResult = await verifyFace(employee.faceDescriptor as any, faceDescriptor);
-    if (!faceResult.verified) {
-      await logFaceVerification({ employeeId: employee.id, action: 'CHECK_OUT', similarityScore: faceResult.similarityScore, verified: false, message: faceResult.message });
-      throw new Error(`Face verification failed: ${faceResult.message}`);
-    }
-    faceScore = faceResult.similarityScore;
-    faceVerified = faceResult.verified;
-
-    // Upload to Cloudinary
+  if (!isHardware && photoBuffer) {
+    // Upload to Cloudinary without Face AI validation
     const publicId = `emp-${employee.id}/${today.toISOString().split('T')[0]}/checkout`;
     const uploadResult = await uploadAttendancePhoto(photoBuffer, publicId);
     uploadUrl = uploadResult.url;
