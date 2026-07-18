@@ -251,8 +251,8 @@ export const today = async (req: AuthRequest, res: Response) => {
     res.json({
       ...entry,
       date: entry.date instanceof Date ? entry.date.toISOString().slice(0, 10) : String(entry.date).slice(0, 10),
-      inTime: entry.inTime instanceof Date ? entry.inTime.toISOString().slice(11, 19) : (entry.inTime ? String(entry.inTime).slice(11, 19) : null),
-      outTime: entry.outTime instanceof Date ? entry.outTime.toISOString().slice(11, 19) : (entry.outTime ? String(entry.outTime).slice(11, 19) : null),
+      inTime: entry.inTime instanceof Date ? entry.inTime.toISOString() : (entry.inTime ? String(entry.inTime) : null),
+      outTime: entry.outTime instanceof Date ? entry.outTime.toISOString() : (entry.outTime ? String(entry.outTime) : null),
     });
   } catch (error: any) {
     res.status(400).json({ error: error.message });

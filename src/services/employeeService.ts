@@ -51,8 +51,8 @@ export const getEmployeeAttendance = async (employeeId: number, month: string): 
   return entries.map(e => ({
     ...e,
     date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date).slice(0, 10),
-    inTime: e.inTime instanceof Date ? e.inTime.toISOString().slice(11, 19) : (e.inTime ? String(e.inTime).slice(11, 19) : null),
-    outTime: e.outTime instanceof Date ? e.outTime.toISOString().slice(11, 19) : (e.outTime ? String(e.outTime).slice(11, 19) : null),
+    inTime: e.inTime instanceof Date ? e.inTime.toISOString() : (e.inTime ? String(e.inTime) : null),
+    outTime: e.outTime instanceof Date ? e.outTime.toISOString() : (e.outTime ? String(e.outTime) : null),
   }));
 };
 
