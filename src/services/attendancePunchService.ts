@@ -4,6 +4,7 @@ import { uploadAttendancePhoto } from './cloudinaryService';
 import { verifyFace } from './faceVerificationService';
 import { assertPayrollUnlocked } from './attendanceReportService';
 import { logFaceVerification } from './auditService';
+import { notify, notifyAllHr } from './notificationService';
 
 
 
@@ -164,11 +165,16 @@ export const checkIn = async (
                 message: `Fraud alert: Device moved ${Math.round(dist/1000)}km in ${hoursDelta.toFixed(1)} hours (${Math.round(speedKmh)} km/h).`
               }
             });
+            notifyAllHr('⚠️ Fraud Alert', `Impossible travel detected for ${employee.name || 'Employee #' + employee.id}: ${Math.round(dist/1000)}km in ${hoursDelta.toFixed(1)}h (${Math.round(speedKmh)} km/h).`).catch(() => {});
           }
         }
       }
     }
   } catch (err) { console.error("Fraud detection error", err); }
+
+  // Notify employee of successful check-in
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  notify(employee.userId, '✅ Punched In', `You checked in at ${timeStr}. Have a great day!`).catch(() => {});
 
   return entry;
 };
@@ -278,10 +284,17 @@ export const checkOut = async (
               message: `Fraud alert: Device moved ${Math.round(dist/1000)}km in ${hoursDelta.toFixed(1)} hours (${Math.round(speedKmh)} km/h) since check-in.`
             }
           });
+          notifyAllHr('⚠️ Fraud Alert', `Impossible travel on checkout for ${employee.name || 'Employee #' + employee.id}: ${Math.round(dist/1000)}km in ${hoursDelta.toFixed(1)}h since check-in.`).catch(() => {});
         }
       }
     }
   } catch (err) { console.error("Fraud detection error", err); }
+
+  // Notify employee of successful check-out
+  const hrs = Math.floor(workedMinutes / 60);
+  const mins = workedMinutes % 60;
+  const outTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  notify(employee.userId, '✅ Punched Out', `You checked out at ${outTimeStr}. Today\'s work: ${hrs}h ${mins}m.`).catch(() => {});
 
   return entry;
 };

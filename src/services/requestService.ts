@@ -3,7 +3,7 @@ import { Employee, LeaveRequestStatus, RegularizationStatus, WorkRequestType, Wo
 import { uploadDocument } from './cloudinaryService';
 import { notifyHr, notifyUser } from './mailService';
 import { assertPayrollUnlocked } from './attendanceReportService';
-import { notifyUserRecord } from './notificationService';
+import { notifyUserRecord, notifyAllHr } from './notificationService';
 
 
 
@@ -66,6 +66,7 @@ export const createLeaveRequest = async (
   });
 
   await notifyHr(`Leave Request: ${employee.name}`, `Employee ${employee.name} requested leave from ${fromDate.toISOString().split('T')[0]} to ${toDate.toISOString().split('T')[0]}.\nReason: ${reason}`);
+  await notifyAllHr('📋 New Leave Request', `${employee.name} requested leave from ${fromDate.toISOString().split('T')[0]} to ${toDate.toISOString().split('T')[0]}.`);
   return lr;
 };
 
@@ -131,6 +132,7 @@ export const approveLeaveRequest = async (id: number, username: string, hrRemark
   }
 
   await notifyUser(req.employee.user?.username, 'Leave Request Approved', `Your leave request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been approved.`);
+  await notifyUserRecord(req.employee.user, '✅ Leave Approved', `Your leave from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been approved.`);
   return req;
 };
 
@@ -143,6 +145,7 @@ export const rejectLeaveRequest = async (id: number, username: string, hrRemarks
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Leave Request Rejected', `Your leave request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been rejected.`);
+  await notifyUserRecord(req.employee.user, '❌ Leave Rejected', `Your leave from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been rejected.`);
   return req;
 };
 
@@ -174,6 +177,7 @@ export const createRegularizationRequest = async (
     include: requestInclude,
   });
   await notifyHr(`Regularization Request: ${employee.name}`, `Employee ${employee.name} requested regularization for ${date.toISOString().split('T')[0]}.\nReason: ${reason}`);
+  await notifyAllHr('📋 New Correction Request', `${employee.name} requested attendance correction for ${date.toISOString().split('T')[0]}.`);
   return req;
 };
 
@@ -233,6 +237,7 @@ export const approveRegularization = async (id: number, username: string, hrRema
   });
 
   await notifyUser(req.employee.user?.username, 'Regularization Approved', `Your regularization request for ${req.date.toISOString().split('T')[0]} has been approved.`);
+  await notifyUserRecord(req.employee.user, '✅ Correction Approved', `Your attendance correction for ${req.date.toISOString().split('T')[0]} has been approved.`);
   return req;
 };
 
@@ -245,6 +250,7 @@ export const rejectRegularization = async (id: number, username: string, hrRemar
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Regularization Rejected', `Your regularization request for ${req.date.toISOString().split('T')[0]} has been rejected.`);
+  await notifyUserRecord(req.employee.user, '❌ Correction Rejected', `Your attendance correction for ${req.date.toISOString().split('T')[0]} has been rejected.`);
   return req;
 };
 
@@ -276,6 +282,7 @@ export const createWorkRequest = async (
     include: requestInclude,
   });
   await notifyHr(`Work Request: ${employee.name}`, `Employee ${employee.name} requested ${type} from ${fromDate.toISOString().split('T')[0]} to ${toDate.toISOString().split('T')[0]}.\nReason: ${reason}`);
+  await notifyAllHr('📋 New Work Request', `${employee.name} requested ${type.replace(/_/g, ' ')} from ${fromDate.toISOString().split('T')[0]} to ${toDate.toISOString().split('T')[0]}.`);
   return req;
 };
 
@@ -302,6 +309,7 @@ export const approveWorkRequest = async (id: number, username: string, remarks: 
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Work Request Approved', `Your work request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been approved.`);
+  await notifyUserRecord(req.employee.user, '✅ Work Request Approved', `Your work request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been approved.`);
   return req;
 };
 
@@ -314,6 +322,7 @@ export const rejectWorkRequest = async (id: number, username: string, remarks: s
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Work Request Rejected', `Your work request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been rejected.`);
+  await notifyUserRecord(req.employee.user, '❌ Work Request Rejected', `Your work request from ${req.fromDate.toISOString().split('T')[0]} to ${req.toDate.toISOString().split('T')[0]} has been rejected.`);
   return req;
 };
 
@@ -345,6 +354,7 @@ export const createCompOffRequest = async (
     include: requestInclude,
   });
   await notifyHr(`Comp-Off Request: ${employee.name}`, `Employee ${employee.name} requested comp-off for overtime on ${overtimeDate.toISOString().split('T')[0]}.\nReason: ${reason}`);
+  await notifyAllHr('📋 New Comp-Off Request', `${employee.name} requested comp-off for overtime on ${overtimeDate.toISOString().split('T')[0]}.`);
   return req;
 };
 
@@ -371,6 +381,7 @@ export const approveCompOff = async (id: number, username: string, hrRemarks: st
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Comp-Off Approved', `Your comp-off request for ${req.requestedDate.toISOString().split('T')[0]} has been approved.`);
+  await notifyUserRecord(req.employee.user, '✅ Comp-Off Approved', `Your comp-off for ${req.requestedDate.toISOString().split('T')[0]} has been approved.`);
   return req;
 };
 
@@ -383,6 +394,7 @@ export const rejectCompOff = async (id: number, username: string, hrRemarks: str
     include: { employee: { include: { user: true } } },
   });
   await notifyUser(req.employee.user?.username, 'Comp-Off Rejected', `Your comp-off request for ${req.requestedDate.toISOString().split('T')[0]} has been rejected.`);
+  await notifyUserRecord(req.employee.user, '❌ Comp-Off Rejected', `Your comp-off for ${req.requestedDate.toISOString().split('T')[0]} has been rejected.`);
   return req;
 };
 

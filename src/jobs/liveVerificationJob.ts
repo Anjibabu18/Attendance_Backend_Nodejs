@@ -1,7 +1,7 @@
 import prisma from '../prisma';
 import cron from 'node-cron';
 
-import { sendPushToUser } from '../services/pushService';
+import { notify } from '../services/notificationService';
 
 
 
@@ -63,11 +63,7 @@ export const runLiveVerificationJob = async () => {
 
         // Send Push Notification
         try {
-          await sendPushToUser(entry.employee.user.id, {
-            title: 'Security Check: Live Verification',
-            body: 'Please verify your face within the next 10 minutes to maintain your active shift.',
-            url: '/employee/dashboard',
-          });
+          await notify(entry.employee.user.id, '🔒 Live Verification Required', 'Please verify your face within the next 10 minutes to maintain your active shift.');
         } catch (e) {
           console.error('Failed to send verification push', e);
         }

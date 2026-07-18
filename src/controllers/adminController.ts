@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { monthAnalytics } from '../services/analyticsService';
 import { uploadGroupPhoto } from '../services/cloudinaryService';
 import { auditCsv, listAuditEvents } from '../services/auditService';
+import { notifyAllByRole } from '../services/notificationService';
 
 
 const toDateOnly = (value: string | Date) => {
@@ -370,6 +371,13 @@ export const saveAttendanceSettings = async (req: AuthRequest, res: Response) =>
     };
     const existing = await prisma.attendanceSettings.findFirst();
     const saved = existing ? await prisma.attendanceSettings.update({ where: { id: existing.id }, data }) : await prisma.attendanceSettings.create({ data });
+
+    // Notify all employees about settings change
+    const inDisplay = req.body.defaultInTime || '09:00';
+    const outDisplay = req.body.defaultOutTime || '18:00';
+    notifyAllByRole('ROLE_EMPLOYEE', '⚙️ Schedule Updated', `Office timings updated: In ${inDisplay} → Out ${outDisplay}.`).catch(() => {});
+    notifyAllByRole('ROLE_HR', '⚙️ Settings Updated', `Admin updated attendance settings. In: ${inDisplay}, Out: ${outDisplay}.`).catch(() => {});
+
     res.json(settingsView(saved));
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };

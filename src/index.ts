@@ -146,6 +146,34 @@ app.post('/api/notifications/read', async (req: any, res) => {
     res.json({ ok: true });
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 });
+
+app.get('/api/notifications/stream', async (req: any, res) => {
+  try {
+    const authHeader = req.headers.authorization || req.query.token;
+    let tokenStr = authHeader;
+    if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+      tokenStr = authHeader.substring(7);
+    }
+    if (!tokenStr) return res.status(401).json({ error: 'Missing authorization' });
+    
+    const { verifyToken } = await import('./utils/jwt');
+    const decoded: any = verifyToken(tokenStr as string);
+    const user = await prisma.appUser.findUnique({ where: { username: decoded.sub as string } });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+    
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive'
+    });
+    res.write('event: open\ndata: {}\n\n');
+
+    const { addSseClient } = await import('./services/notificationService');
+    addSseClient(user.id, res);
+
+  } catch (error: any) { res.status(400).json({ error: error.message }); }
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employee', employeeRoutes);

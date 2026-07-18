@@ -7,6 +7,7 @@ import { monthAnalytics } from '../services/analyticsService';
 import { attendanceCsv, monthSummary, payrollCsv, payrollLockView, payrollRegister, simplePdf, startOfMonth, endOfMonth } from '../services/attendanceReportService';
 import { notifyUser } from '../services/mailService';
 import { uploadDailyGroupPhoto, uploadGroupPhoto } from '../services/cloudinaryService';
+import { notify } from '../services/notificationService';
 
 
 
@@ -126,6 +127,7 @@ export const scanMissingCheckouts = async (req: AuthRequest, res: Response) => {
       await prisma.attendanceException.create({ data: { employeeId: entry.employeeId, type: 'MISSING_CHECKOUT', message } });
       createdExceptions++;
       await notifyUser(entry.employee.user.username, 'Missing checkout reminder', `${message}. Please submit an attendance correction if needed.`);
+      await notify(entry.employee.user.id, '⚠️ Missing Checkout', `You didn't punch out on ${entry.date.toISOString().split('T')[0]}. Please submit a correction.`);
     }
     res.json({ openEntries: entries.length, createdExceptions });
   } catch (e: any) { res.status(400).json({ error: e.message }); }
@@ -336,14 +338,16 @@ export const saveAttendanceRange = async (req: AuthRequest, res: Response) => {
 
 export const approveLeaveCancellation = async (req: AuthRequest, res: Response) => {
   try {
-    const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'CANCELLED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: true } });
+    const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'CANCELLED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: { include: { user: true } } } });
+    await notify(saved.employee.user?.id, '✅ Leave Cancellation Approved', `Your request to cancel leave on ${saved.fromDate.toISOString().split('T')[0]} was approved.`);
     res.json(saved);
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
 
 export const rejectLeaveCancellation = async (req: AuthRequest, res: Response) => {
   try {
-    const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'APPROVED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: true } });
+    const saved = await prisma.leaveRequest.update({ where: { id: Number(req.params.id) }, data: { status: 'APPROVED', hrRemarks: req.body?.remarks || null, decidedAt: new Date() }, include: { employee: { include: { user: true } } } });
+    await notify(saved.employee.user?.id, '❌ Leave Cancellation Rejected', `Your request to cancel leave on ${saved.fromDate.toISOString().split('T')[0]} was rejected.`);
     res.json(saved);
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };
@@ -373,6 +377,7 @@ export const approveDeviceRequest = async (req: AuthRequest, res: Response) => {
     if (!dr) throw new Error('Device request not found');
 
     await prisma.deviceRequest.update({ where: { id }, data: { approved: true } });
+    await notify(dr.employeeId ? (await prisma.employee.findUnique({ where: { id: dr.employeeId } }))?.userId : null, '📱 Device Approved', `Your device ${dr.label} is now approved for punches.`);
 
     res.json({ ok: true, id, approved: true });
   } catch (error: any) { res.status(400).json({ error: error.message }); }
@@ -381,7 +386,13 @@ export const approveDeviceRequest = async (req: AuthRequest, res: Response) => {
 export const rejectDeviceRequest = async (req: AuthRequest, res: Response) => {
   try {
     const id = Number(req.params.id);
+    const dr = await prisma.deviceRequest.findUnique({ where: { id } });
     await prisma.deviceRequest.delete({ where: { id } });
+    
+    if (dr) {
+      await notify(dr.employeeId ? (await prisma.employee.findUnique({ where: { id: dr.employeeId } }))?.userId : null, '❌ Device Rejected', `Your device ${dr.label} registration was rejected.`);
+    }
+
     res.json({ ok: true, id, approved: false });
   } catch (error: any) { res.status(400).json({ error: error.message }); }
 };

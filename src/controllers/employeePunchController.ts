@@ -157,8 +157,18 @@ export const postCheckIn = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    const { getEmployeeStreaks } = await import('../services/streaksService');
+    const oldStreaks = await getEmployeeStreaks(employee.id);
     const entry = await checkIn(employee, latitude, longitude, photoBuffer, null);
-    res.json(entry);
+    const newStreaks = await getEmployeeStreaks(employee.id);
+    const newBadgesEarned = newStreaks.badges.filter(b => !oldStreaks.badges.includes(b));
+    
+    res.json({
+      ...entry,
+      streak: newStreaks.currentStreak,
+      newBadgesEarned,
+      isNewStreak: newStreaks.currentStreak > oldStreaks.currentStreak
+    });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

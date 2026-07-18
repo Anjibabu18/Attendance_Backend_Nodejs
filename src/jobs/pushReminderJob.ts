@@ -1,7 +1,7 @@
 import prisma from '../prisma';
 import cron from 'node-cron';
 
-import { sendPushToUser } from '../services/pushService';
+import { notify } from '../services/notificationService';
 
 
 
@@ -65,17 +65,9 @@ export function startPushReminderJobs() {
         let sentCount = 0;
         for (const emp of employees) {
           if (!punchedInIds.has(emp.id)) {
-            // Check if user has push subscriptions
-            const subCount = await prisma.pushSubscription.count({ where: { userId: emp.userId } });
-            if (subCount > 0) {
-              await sendPushToUser(emp.userId, {
-                title: '⏰ Punch-In Reminder',
-                body: `Good morning! Don't forget to punch in. Office hours start at ${formatTime(inHour, inMinute)}.`,
-                icon: '/favicon.ico',
-                url: '/employee',
-              }).catch((err) => console.error(`[PushJob] Failed to send to user ${emp.userId}:`, err));
-              sentCount++;
-            }
+            await notify(emp.userId, '⏰ Punch-In Reminder', `Good morning! Don't forget to punch in. Office hours start at ${formatTime(inHour, inMinute)}.`)
+              .catch((err) => console.error(`[PushJob] Failed to notify user ${emp.userId}:`, err));
+            sentCount++;
           }
         }
         console.log(`[PushJob] Sent ${sentCount} punch-in reminders.`);
@@ -101,16 +93,9 @@ export function startPushReminderJobs() {
 
         let sentCount = 0;
         for (const entry of entries) {
-          const subCount = await prisma.pushSubscription.count({ where: { userId: entry.employee.userId } });
-          if (subCount > 0) {
-            await sendPushToUser(entry.employee.userId, {
-              title: '🏠 Punch-Out Reminder',
-              body: `Did you leave? Remember to punch out! Office hours ended at ${formatTime(outHour, outMinute)}.`,
-              icon: '/favicon.ico',
-              url: '/employee',
-            }).catch((err) => console.error(`[PushJob] Failed to send to user ${entry.employee.userId}:`, err));
-            sentCount++;
-          }
+          await notify(entry.employee.userId, '🏠 Punch-Out Reminder', `Did you leave? Remember to punch out! Office hours ended at ${formatTime(outHour, outMinute)}.`)
+            .catch((err) => console.error(`[PushJob] Failed to notify user ${entry.employee.userId}:`, err));
+          sentCount++;
         }
         console.log(`[PushJob] Sent ${sentCount} punch-out reminders.`);
       }
