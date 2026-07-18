@@ -183,20 +183,18 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
         uploadUrl = uploadResult.url;
     }
     const now = new Date();
-    // Calculate worked minutes roughly
+    // Determine Status: < 8 hours = HALF_DAY, >= 8 hours = PRESENT
     const workedMinutes = Math.floor((now.getTime() - existing.inTime.getTime()) / 60000);
-    // Determine Status based on worked minutes
-    const settings = await prisma_1.default.attendanceSettings.findFirst() || {
-        fullDayMinutes: 480,
-        halfDayMinutes: 240,
-        earlyLeaveGraceMinutes: 10
-    };
-    let newStatus = 'PRESENT';
-    if (workedMinutes < settings.halfDayMinutes) {
-        newStatus = 'ABSENT';
+    const FULL_DAY_MINUTES = 480; // 8 hours
+    let newStatus;
+    let overtimeMinutes = 0;
+    if (workedMinutes >= FULL_DAY_MINUTES) {
+        newStatus = 'PRESENT';
+        overtimeMinutes = workedMinutes - FULL_DAY_MINUTES; // Minutes beyond 8h
     }
-    else if (workedMinutes < (settings.fullDayMinutes - settings.earlyLeaveGraceMinutes)) {
+    else {
         newStatus = 'HALF_DAY';
+        overtimeMinutes = 0;
     }
     const entry = await prisma_1.default.attendanceEntry.update({
         where: { id: existing.id },
@@ -204,6 +202,7 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
             outTime: now,
             workedMinutes,
             status: newStatus,
+            overtimeMinutes,
             checkOutLatitude: isHardware ? null : latitude,
             checkOutLongitude: isHardware ? null : longitude,
             checkOutPhotoUrl: uploadUrl,
@@ -246,11 +245,20 @@ const checkOut = async (employee, latitude, longitude, photoBuffer, faceDescript
     catch (err) {
         console.error("Fraud detection error", err);
     }
-    // Notify employee of successful check-out
+    // Notify employee of successful check-out with status details
     const hrs = Math.floor(workedMinutes / 60);
     const mins = workedMinutes % 60;
     const outTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-    (0, notificationService_1.notify)(employee.userId, '✅ Punched Out', `You checked out at ${outTimeStr}. Today\'s work: ${hrs}h ${mins}m.`).catch(() => { });
+    let notifMessage = `You checked out at ${outTimeStr}. Today's work: ${hrs}h ${mins}m.`;
+    if (newStatus === 'HALF_DAY') {
+        notifMessage += ` (Half Day — worked less than 8 hours)`;
+    }
+    else if (overtimeMinutes > 0) {
+        const otHrs = Math.floor(overtimeMinutes / 60);
+        const otMins = overtimeMinutes % 60;
+        notifMessage += ` Overtime: ${otHrs}h ${otMins}m 🌟`;
+    }
+    (0, notificationService_1.notify)(employee.userId, '✅ Punched Out', notifMessage).catch(() => { });
     return entry;
 };
 exports.checkOut = checkOut;
