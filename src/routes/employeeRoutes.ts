@@ -10,6 +10,12 @@ import { getPendingVerification, submitVerification } from '../controllers/verif
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Push notifications (Available to any authenticated user, including Admins)
+router.get('/push/vapid-key', requireAuth, vapidKey);
+router.post('/push/subscribe', requireAuth, subscribe);
+router.post('/push/unsubscribe', requireAuth, unsubscribe);
+router.post('/push/test', requireAuth, testPush);
+
 // Middleware for all employee routes
 router.use(requireAuth);
 router.use(requireRole(['ROLE_EMPLOYEE']));
@@ -26,12 +32,6 @@ router.get('/leave-balances', leaveBalances);
 router.get('/streaks', getStreaks);
 router.get('/live-verify/pending', getPendingVerification);
 router.post('/live-verify/:requestId/submit', upload.single('file'), submitVerification);
-
-// Push notifications
-router.get('/push/vapid-key', vapidKey);
-router.post('/push/subscribe', subscribe);
-router.post('/push/unsubscribe', unsubscribe);
-router.post('/push/test', testPush);
 
 // Leaves
 router.get('/leave-requests', listLeaveRequests);
