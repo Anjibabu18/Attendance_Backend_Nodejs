@@ -22,9 +22,7 @@ export async function triggerScheduledPushes() {
   // Get current time in IST (India Standard Time)
   // because the frontend schedules the cron string based on the user's local (IST) time.
   const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
-  const currentMinute = nowIST.getMinutes();
-  const currentHour = nowIST.getHours();
-  const currentDay = nowIST.getDay(); // 0-6 (Sun-Sat)
+  const prevIST = new Date(nowIST.getTime() - 60000); // 1 minute ago
 
   const scheduledPushes = await prisma.scheduledPush.findMany({
     where: { isActive: true },
@@ -40,21 +38,28 @@ export async function triggerScheduledPushes() {
     const cronHour = parts[1];
     const cronDayStr = parts[4];
 
-    // Evaluate match
-    const minMatches = cronMin === '*' || parseInt(cronMin) === currentMinute;
-    const hourMatches = cronHour === '*' || parseInt(cronHour) === currentHour;
-    
-    let dayMatches = false;
-    if (cronDayStr === '*') {
-      dayMatches = true;
-    } else {
-      const days = cronDayStr.split(',').map(Number);
-      if (days.includes(currentDay)) {
+    // Helper to evaluate if a given Date object matches the cron expression
+    function checkMatch(timeObj: Date) {
+      const min = timeObj.getMinutes();
+      const hr = timeObj.getHours();
+      const day = timeObj.getDay(); // 0-6 (Sun-Sat)
+
+      const minMatches = cronMin === '*' || parseInt(cronMin) === min;
+      const hourMatches = cronHour === '*' || parseInt(cronHour) === hr;
+      
+      let dayMatches = false;
+      if (cronDayStr === '*') {
         dayMatches = true;
+      } else {
+        const days = cronDayStr.split(',').map(Number);
+        if (days.includes(day)) {
+          dayMatches = true;
+        }
       }
+      return minMatches && hourMatches && dayMatches;
     }
 
-    if (minMatches && hourMatches && dayMatches) {
+    if (checkMatch(nowIST) || checkMatch(prevIST)) {
       console.log(`[Cron Trigger] MATCHED scheduled push: ${push.title}`);
       triggeredCount++;
       
