@@ -46,3 +46,15 @@ export const biometricPunch = async (req: Req, res: Res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+import { triggerScheduledPushes } from '../services/cronService';
+
+export const triggerScheduledPushesEndpoint = async (req: Req, res: Res) => {
+  try {
+    const result = await triggerScheduledPushes();
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Cron trigger error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};

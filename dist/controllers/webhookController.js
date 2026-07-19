@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.biometricPunch = void 0;
+exports.triggerScheduledPushesEndpoint = exports.biometricPunch = void 0;
 const prisma_1 = __importDefault(require("../prisma"));
 const attendancePunchService_1 = require("../services/attendancePunchService");
 const WEBHOOK_SECRET = process.env.BIOMETRIC_WEBHOOK_SECRET || 'zkt-biometric-secret-2026';
@@ -44,3 +44,15 @@ const biometricPunch = async (req, res) => {
     }
 };
 exports.biometricPunch = biometricPunch;
+const cronService_1 = require("../services/cronService");
+const triggerScheduledPushesEndpoint = async (req, res) => {
+    try {
+        const result = await (0, cronService_1.triggerScheduledPushes)();
+        return res.json(result);
+    }
+    catch (error) {
+        console.error('Cron trigger error:', error);
+        return res.status(500).json({ error: error.message });
+    }
+};
+exports.triggerScheduledPushesEndpoint = triggerScheduledPushesEndpoint;
