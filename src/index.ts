@@ -210,6 +210,7 @@ import { startAttendanceCronJob } from './jobs/attendanceJob';
 import { startPushReminderJobs } from './jobs/pushReminderJob';
 import { startEmailDigestJob } from './jobs/emailDigestJob';
 import { startLiveVerificationCronJob } from './jobs/liveVerificationJob';
+import { initializeCronJobs } from './services/cronService';
 
 export default app;
 
@@ -221,6 +222,7 @@ if (!process.env.VERCEL) {
     startPushReminderJobs();
     startEmailDigestJob();
     startLiveVerificationCronJob();
+    initializeCronJobs();
   });
 }
 

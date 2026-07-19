@@ -7,7 +7,7 @@ import { monthAnalytics } from '../services/analyticsService';
 import { uploadGroupPhoto } from '../services/cloudinaryService';
 import { auditCsv, listAuditEvents } from '../services/auditService';
 import { notifyAllByRole } from '../services/notificationService';
-
+import { reloadCronJobs } from '../services/cronService';
 
 const toDateOnly = (value: string | Date) => {
   const date = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00Z`);
@@ -740,3 +740,62 @@ export const statutoryReport = async (req: AuthRequest, res: Response) => {
 };
 
 
+// Scheduled Push Notifications
+
+export async function listScheduledPushes(req: AuthRequest, res: Response) {
+  try {
+    const pushes = await prisma.scheduledPush.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(pushes);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+export async function createScheduledPush(req: AuthRequest, res: Response) {
+  try {
+    const { title, body, cronExpression, isActive } = req.body;
+    if (!title || !body || !cronExpression) {
+      return res.status(400).json({ error: 'Title, body, and cronExpression are required' });
+    }
+    const push = await prisma.scheduledPush.create({
+      data: { title, body, cronExpression, isActive: isActive ?? true }
+    });
+    await reloadCronJobs();
+    res.json(push);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+export async function updateScheduledPush(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    const { title, body, cronExpression, isActive } = req.body;
+    const push = await prisma.scheduledPush.update({
+      where: { id: Number(id) },
+      data: {
+        title: title !== undefined ? title : undefined,
+        body: body !== undefined ? body : undefined,
+        cronExpression: cronExpression !== undefined ? cronExpression : undefined,
+        isActive: isActive !== undefined ? isActive : undefined,
+      }
+    });
+    await reloadCronJobs();
+    res.json(push);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+
+export async function deleteScheduledPush(req: AuthRequest, res: Response) {
+  try {
+    const { id } = req.params;
+    await prisma.scheduledPush.delete({ where: { id: Number(id) } });
+    await reloadCronJobs();
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
