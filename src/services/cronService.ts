@@ -3,7 +3,7 @@ import prisma from '../prisma';
 import { sendPushToUser } from './pushService';
 
 // Store running tasks to be able to stop them when reloading
-let runningJobs: cron.ScheduledTask[] = [];
+let runningJobs: any[] = [];
 
 export async function reloadCronJobs() {
   console.log('[Cron] Reloading cron jobs...');
