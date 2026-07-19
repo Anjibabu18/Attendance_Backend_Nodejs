@@ -1,51 +1,49 @@
 {
-    "name":  "backend-node",
-    "version":  "1.0.0",
-    "description":  "",
-    "main":  "index.js",
-    "scripts":  {
-                    "build":  "prisma generate \u0026\u0026 tsc",
-                    "start":  "node dist/index.js",
-                    "dev":  "ts-node src/index.ts",
-                    "dev:watch":  "nodemon --exec ts-node src/index.ts",
-                    "test":  "echo \"Error: no test specified\" \u0026\u0026 exit 1"
-                },
-    "keywords":  [
-
-                 ],
-    "author":  "",
-    "license":  "ISC",
-    "dependencies":  {
-                         "@prisma/client":  "^5.22.0",
-                         "@simplewebauthn/server":  "^13.3.2",
-                         "bcryptjs":  "^3.0.3",
-                         "cloudinary":  "^2.10.0",
-                         "cors":  "^2.8.6",
-                         "dotenv":  "^17.4.2",
-                         "express":  "^5.2.1",
-                         "jimp":  "^0.22.12",
-                         "jsonwebtoken":  "^9.0.3",
-                         "multer":  "^2.2.0",
-                         "node-cron":  "^4.6.0",
-                         "nodemailer":  "^9.0.3",
-                         "qrcode":  "^1.5.4",
-                         "web-push":  "^3.6.7",
-                         "zod":  "^4.4.3"
-                     },
-    "devDependencies":  {
-                            "@types/bcryptjs":  "^2.4.6",
-                            "@types/cors":  "^2.8.19",
-                            "@types/express":  "^5.0.6",
-                            "@types/jsonwebtoken":  "^9.0.10",
-                            "@types/multer":  "^2.2.0",
-                            "@types/node":  "^26.1.1",
-                            "@types/node-cron":  "^3.0.11",
-                            "@types/nodemailer":  "^8.0.1",
-                            "@types/qrcode":  "^1.5.6",
-                            "@types/web-push":  "^3.6.4",
-                            "nodemon":  "^3.1.14",
-                            "prisma":  "^5.22.0",
-                            "ts-node":  "^10.9.2",
-                            "typescript":  "^5.5.4"
-                        }
+    "name": "backend-node",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "build": "prisma generate && tsc",
+        "start": "node dist/index.js",
+        "dev": "ts-node src/index.ts",
+        "dev:watch": "nodemon --exec ts-node src/index.ts",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@prisma/client": "^5.22.0",
+        "@simplewebauthn/server": "^13.3.2",
+        "bcryptjs": "^3.0.3",
+        "cloudinary": "^2.10.0",
+        "cors": "^2.8.6",
+        "dotenv": "^17.4.2",
+        "express": "^5.2.1",
+        "jimp": "^0.22.12",
+        "jsonwebtoken": "^9.0.3",
+        "multer": "^2.2.0",
+        "node-cron": "^4.6.0",
+        "nodemailer": "^9.0.3",
+        "qrcode": "^1.5.4",
+        "web-push": "^3.6.7",
+        "zod": "^4.4.3"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/multer": "^2.2.0",
+        "@types/node": "^26.1.1",
+        "@types/node-cron": "^3.0.11",
+        "@types/nodemailer": "^8.0.1",
+        "@types/qrcode": "^1.5.6",
+        "@types/web-push": "^3.6.4",
+        "nodemon": "^3.1.14",
+        "prisma": "^5.22.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.5.4"
+    }
 }

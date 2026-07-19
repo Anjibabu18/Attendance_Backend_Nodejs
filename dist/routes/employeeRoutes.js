@@ -13,6 +13,11 @@ const streaksController_1 = require("../controllers/streaksController");
 const verificationController_1 = require("../controllers/verificationController");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
+// Push notifications (Available to any authenticated user, including Admins)
+router.get('/push/vapid-key', authMiddleware_1.requireAuth, pushController_1.vapidKey);
+router.post('/push/subscribe', authMiddleware_1.requireAuth, pushController_1.subscribe);
+router.post('/push/unsubscribe', authMiddleware_1.requireAuth, pushController_1.unsubscribe);
+router.post('/push/test', authMiddleware_1.requireAuth, pushController_1.testPush);
 // Middleware for all employee routes
 router.use(authMiddleware_1.requireAuth);
 router.use((0, authMiddleware_1.requireRole)(['ROLE_EMPLOYEE']));
@@ -28,11 +33,6 @@ router.get('/leave-balances', employeeController_1.leaveBalances);
 router.get('/streaks', streaksController_1.getStreaks);
 router.get('/live-verify/pending', verificationController_1.getPendingVerification);
 router.post('/live-verify/:requestId/submit', upload.single('file'), verificationController_1.submitVerification);
-// Push notifications
-router.get('/push/vapid-key', pushController_1.vapidKey);
-router.post('/push/subscribe', pushController_1.subscribe);
-router.post('/push/unsubscribe', pushController_1.unsubscribe);
-router.post('/push/test', pushController_1.testPush);
 // Leaves
 router.get('/leave-requests', employeeController_1.listLeaveRequests);
 router.post('/leave-requests', employeeController_1.createLeaveRequest);

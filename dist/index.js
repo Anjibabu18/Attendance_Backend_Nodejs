@@ -246,6 +246,7 @@ const attendanceJob_2 = require("./jobs/attendanceJob");
 const pushReminderJob_1 = require("./jobs/pushReminderJob");
 const emailDigestJob_1 = require("./jobs/emailDigestJob");
 const liveVerificationJob_1 = require("./jobs/liveVerificationJob");
+const cronService_1 = require("./services/cronService");
 exports.default = app;
 if (!process.env.VERCEL) {
     app.listen(PORT, () => {
@@ -255,5 +256,6 @@ if (!process.env.VERCEL) {
         (0, pushReminderJob_1.startPushReminderJobs)();
         (0, emailDigestJob_1.startEmailDigestJob)();
         (0, liveVerificationJob_1.startLiveVerificationCronJob)();
+        (0, cronService_1.initializeCronJobs)();
     });
 }

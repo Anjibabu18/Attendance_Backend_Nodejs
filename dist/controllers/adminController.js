@@ -38,12 +38,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.productionSessions = exports.productionExceptions = exports.productionDevices = exports.uploadCompanyPhoto = exports.uploadCompanyRolePhoto = exports.setEmployeeEnabled = exports.importEmployees = exports.employeesCsv = exports.assignRoster = exports.bulkEditEmployees = exports.bulkResetPasswords = exports.updateEmployeeUsername = exports.updateEmployeeStatus = exports.resetEmployeePassword = exports.assignEmployeeOfficeLocation = exports.updateOfficeLocation = exports.deleteOfficeLocation = exports.auditLogsCsv = exports.auditLogs = exports.employeeLeaveBalances = exports.setLeaveBalance = exports.saveActiveOfficeLocation = exports.activeOfficeLocation = exports.listOfficeLocations = exports.productionChecklist = exports.analytics = exports.deleteHoliday = exports.createHoliday = exports.listHolidays = exports.saveAttendanceSettings = exports.getAttendanceSettings = exports.listManagerAssignments = exports.assignManager = exports.listManagers = exports.createManager = exports.createHr = exports.resetDeviceBinding = exports.updateEmployee = exports.createEmployee = exports.employeeDetail = exports.listEmployees = exports.getQrImage = exports.getLatestQrToken = exports.generateQr = exports.createCompanyRole = exports.listCompanyRoles = exports.createShift = exports.listShifts = exports.createDepartment = exports.listDepartments = void 0;
 exports.statutoryReport = exports.approveProductionDevice = exports.saveProductionPolicy = exports.productionBackup = void 0;
+exports.listScheduledPushes = listScheduledPushes;
+exports.createScheduledPush = createScheduledPush;
+exports.updateScheduledPush = updateScheduledPush;
+exports.deleteScheduledPush = deleteScheduledPush;
 const prisma_1 = __importDefault(require("../prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const analyticsService_1 = require("../services/analyticsService");
 const cloudinaryService_1 = require("../services/cloudinaryService");
 const auditService_1 = require("../services/auditService");
 const notificationService_1 = require("../services/notificationService");
+const cronService_1 = require("../services/cronService");
 const toDateOnly = (value) => {
     const date = value instanceof Date ? new Date(value) : new Date(`${value}T00:00:00Z`);
     date.setUTCHours(0, 0, 0, 0);
@@ -928,3 +933,62 @@ const statutoryReport = async (req, res) => {
     }
 };
 exports.statutoryReport = statutoryReport;
+// Scheduled Push Notifications
+async function listScheduledPushes(req, res) {
+    try {
+        const pushes = await prisma_1.default.scheduledPush.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(pushes);
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}
+async function createScheduledPush(req, res) {
+    try {
+        const { title, body, cronExpression, isActive } = req.body;
+        if (!title || !body || !cronExpression) {
+            return res.status(400).json({ error: 'Title, body, and cronExpression are required' });
+        }
+        const push = await prisma_1.default.scheduledPush.create({
+            data: { title, body, cronExpression, isActive: isActive ?? true }
+        });
+        await (0, cronService_1.reloadCronJobs)();
+        res.json(push);
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}
+async function updateScheduledPush(req, res) {
+    try {
+        const { id } = req.params;
+        const { title, body, cronExpression, isActive } = req.body;
+        const push = await prisma_1.default.scheduledPush.update({
+            where: { id: Number(id) },
+            data: {
+                title: title !== undefined ? title : undefined,
+                body: body !== undefined ? body : undefined,
+                cronExpression: cronExpression !== undefined ? cronExpression : undefined,
+                isActive: isActive !== undefined ? isActive : undefined,
+            }
+        });
+        await (0, cronService_1.reloadCronJobs)();
+        res.json(push);
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}
+async function deleteScheduledPush(req, res) {
+    try {
+        const { id } = req.params;
+        await prisma_1.default.scheduledPush.delete({ where: { id: Number(id) } });
+        await (0, cronService_1.reloadCronJobs)();
+        res.json({ ok: true });
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+}
