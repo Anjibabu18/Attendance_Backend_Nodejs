@@ -423,6 +423,7 @@ model Notification {
   title     String   @db.VarChar(160)
   message   String   @db.VarChar(1000)
   read      Boolean  @default(false) @map("is_read")
+  read_flag Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("notifications")

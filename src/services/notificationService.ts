@@ -30,7 +30,7 @@ export const pushToSseClients = (userId: number, data: any) => {
 
 export const notify = async (userId: number | undefined | null, title: string, message: string) => {
   if (!userId) return null;
-  const dbNotification = await prisma.notification.create({ data: { userId, title, message } });
+  const dbNotification = await prisma.notification.create({ data: { userId, title, message, read_flag: false } });
   
   pushToSseClients(userId, dbNotification);
 
