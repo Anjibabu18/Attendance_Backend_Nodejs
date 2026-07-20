@@ -34,6 +34,7 @@ const settingsView = (settings: any) => ({
   requireQrForPunch: settings?.requireQrForPunch ?? false,
   permanentOfficeQr: settings?.permanentOfficeQr ?? false,
   qrTokenValidityMinutes: settings?.qrTokenValidityMinutes ?? 10080,
+  autoAbsentCutoffTime: settings?.autoAbsentCutoffTime ? timeString(settings.autoAbsentCutoffTime, '') : null,
 });
 
 
@@ -368,6 +369,7 @@ export const saveAttendanceSettings = async (req: AuthRequest, res: Response) =>
       requireQrForPunch: Boolean(req.body.requireQrForPunch),
       permanentOfficeQr: Boolean(req.body.permanentOfficeQr),
       qrTokenValidityMinutes: Number(req.body.qrTokenValidityMinutes ?? 10080),
+      autoAbsentCutoffTime: req.body.autoAbsentCutoffTime ? timeDate(req.body.autoAbsentCutoffTime) : null,
     };
     const existing = await prisma.attendanceSettings.findFirst();
     const saved = existing ? await prisma.attendanceSettings.update({ where: { id: existing.id }, data }) : await prisma.attendanceSettings.create({ data });

@@ -68,7 +68,53 @@ export async function triggerScheduledPushes() {
     }
   }
 
+  const settings = await prisma.attendanceSettings.findFirst();
+  if (settings?.autoAbsentCutoffTime) {
+    const cutoffDate = new Date(settings.autoAbsentCutoffTime);
+    const cutoffMin = cutoffDate.getUTCMinutes();
+    const cutoffHr = cutoffDate.getUTCHours();
+    
+    // Check if current IST time matches the cutoff time (which is stored in UTC but treated as IST by our app)
+    const matchesNow = cutoffMin === nowIST.getMinutes() && cutoffHr === nowIST.getHours();
+    const matchesPrev = cutoffMin === prevIST.getMinutes() && cutoffHr === prevIST.getHours();
+    
+    if (matchesNow || matchesPrev) {
+      console.log(`[Cron Trigger] MATCHED Auto-Absent Cutoff Time: ${cutoffHr}:${cutoffMin}`);
+      processAutoAbsents().catch(err => console.error(err));
+    }
+  }
+
   return { success: true, triggered: triggeredCount };
+}
+
+async function processAutoAbsents() {
+  console.log('[Cron Trigger] Processing Auto-Absents for missing checkouts...');
+  try {
+    // Get current date in IST and set to UTC midnight for comparison
+    // Any punch with a date STRICTLY BEFORE this midnight is considered a "previous day" punch
+    const nowIST = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+    nowIST.setUTCHours(0, 0, 0, 0);
+
+    const updated = await prisma.attendanceEntry.updateMany({
+      where: {
+        outTime: null,
+        date: {
+          lt: nowIST // Strictly before today
+        },
+        status: {
+          not: 'ABSENT' // Don't re-update if already absent
+        }
+      },
+      data: {
+        status: 'ABSENT',
+        leaveReason: 'Auto-absent: Forgot to checkout',
+      }
+    });
+
+    console.log(`[Cron Trigger] Auto-Absent processed. Marked ${updated.count} entries as ABSENT.`);
+  } catch (err) {
+    console.error(`[Cron Trigger] Failed to process Auto-Absents:`, err);
+  }
 }
 
 async function executePush(push: any) {

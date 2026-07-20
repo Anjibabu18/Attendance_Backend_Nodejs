@@ -403,6 +403,7 @@ model AttendanceSettings {
   requireQrForPunch      Boolean  @default(false) @map("require_qr_for_punch")
   permanentOfficeQr      Boolean  @default(false) @map("permanent_office_qr")
   qrTokenValidityMinutes Int      @default(10080) @map("qr_token_validity_minutes")
+  autoAbsentCutoffTime   DateTime? @map("auto_absent_cutoff_time") @db.Time
 
   @@map("attendance_settings")
 }
