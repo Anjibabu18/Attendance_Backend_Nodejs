@@ -28,7 +28,8 @@ const isAllowedOrigin = (origin?: string) => {
   const normalized = origin.replace(/\/$/, '');
   if (allowedOrigins.length === 0 || allowedOrigins.includes(normalized)) return true;
   return /^https:\/\/attendance-two-smoky\.vercel\.app$/.test(normalized)
-    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(normalized);
+    || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(normalized)
+    || normalized === 'https://attendance.anushatechnologies.com';
 };
 
 app.use(cors({
