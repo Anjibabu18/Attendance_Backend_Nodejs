@@ -64,8 +64,8 @@ export async function triggerScheduledPushes() {
       console.log(`[Cron Trigger] MATCHED scheduled push: ${push.title}`);
       triggeredCount++;
       
-      // Execute the push in background without awaiting the whole batch
-      executePush(push).catch(err => console.error(err));
+      // Must be awaited for Serverless environments (like Vercel) so the function doesn't freeze
+      await executePush(push).catch(err => console.error(err));
     }
   }
 
@@ -81,7 +81,7 @@ export async function triggerScheduledPushes() {
     
     if (matchesNow || matchesPrev) {
       console.log(`[Cron Trigger] MATCHED Auto-Absent Cutoff Time: ${cutoffHr}:${cutoffMin}`);
-      processAutoAbsents().catch(err => console.error(err));
+      await processAutoAbsents().catch(err => console.error(err));
     }
   }
 
