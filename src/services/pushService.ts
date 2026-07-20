@@ -6,8 +6,8 @@ import webpush from 'web-push';
 
 // VAPID keys - generate once and store in .env
 // To generate: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BNmGKMN4Pw_i8D-TD7530d2JumVFRegA-kw-IMdqdyJmb6OUz78rmzu7-QWnQ0bChTE9OrhVkO4O588vf16VgHQ';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'YuKagrj32k3VEFx7GPWy4A7tj5iBZ7280U4MvNKx858';
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@attendance.app';
 
 if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
