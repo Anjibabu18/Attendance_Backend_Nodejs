@@ -66,6 +66,10 @@ app.get('/api/version', (req, res) => {
   });
 });
 
+app.get('/api/company', async (req, res) => {
+  res.json({ name: 'Anusha Technologies', logoUrl: '/vd-logo.png' });
+});
+
 // Test DB connection endpoint
 app.get('/api/db-test', async (req, res) => {
   try {
