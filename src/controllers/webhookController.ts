@@ -51,8 +51,12 @@ import { triggerScheduledPushes } from '../services/cronService';
 
 export const triggerScheduledPushesEndpoint = async (req: Req, res: Res) => {
   try {
+    // Vercel Serverless Functions cache GET requests by default if no headers are set.
+    // We MUST prevent caching so the trigger actually executes every minute!
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    
     const result = await triggerScheduledPushes();
-    return res.json(result);
+    return res.json(result || { success: true });
   } catch (error: any) {
     console.error('Cron trigger error:', error);
     return res.status(500).json({ error: error.message });
