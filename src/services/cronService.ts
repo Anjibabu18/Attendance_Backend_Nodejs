@@ -130,10 +130,16 @@ async function executePush(push: any) {
     const results = await Promise.allSettled(
       userIds.map((userId) => 
         sendPushToUser(userId, {
-          title: push.title,
+          title: `🔔 ${push.title}`,
           body: push.body,
-          icon: '/favicon.ico',
+          icon: 'https://attendance-two-smoky.vercel.app/pwa-192x192.png',
           url: '/employee',
+          data: {
+            requireInteraction: true,
+            actions: [
+              { action: 'open', title: '✅ View Dashboard' }
+            ]
+          }
         })
       )
     );
