@@ -225,8 +225,12 @@ export const checkOut = async (
 
   const now = new Date();
   
+  // existing.inTime is stored as @db.Time so it returns 1970-01-01. We combine it with existing.date.
+  const actualInTime = new Date(existing.date);
+  actualInTime.setUTCHours(existing.inTime.getUTCHours(), existing.inTime.getUTCMinutes(), existing.inTime.getUTCSeconds(), existing.inTime.getUTCMilliseconds());
+
   // Determine Status: < 4 hours = ABSENT, 4 to 8 hours = HALF_DAY, >= 8 hours = PRESENT
-  const workedMinutes = Math.floor((now.getTime() - existing.inTime.getTime()) / 60000);
+  const workedMinutes = Math.floor((now.getTime() - actualInTime.getTime()) / 60000);
   const FULL_DAY_MINUTES = 480; // 8 hours
   const HALF_DAY_MINUTES = 240; // 4 hours
 
