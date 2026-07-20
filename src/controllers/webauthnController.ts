@@ -11,7 +11,7 @@ import { createAccessToken, createRefreshToken } from '../utils/jwt';
 
 
 
-const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
+const PRODUCTION_FRONTEND_URL = 'https://attendance.anushatechnologies.com';
 
 const normalizeOrigin = (value?: string | null) => {
   if (!value) return null;
