@@ -29,8 +29,9 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
       role: decoded.role,
     };
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch (error: any) {
+    console.error('[authMiddleware] verifyToken failed:', error?.message || error);
+    return res.status(401).json({ error: 'Invalid or expired token', detail: error?.message });
   }
 };
 
