@@ -3,13 +3,14 @@ import prisma from '../prisma';
 import { sendPushToUser } from './pushService';
 
 export async function reloadCronJobs() {
-  // Obsolete for Vercel Serverless Functions. 
-  // We use the HTTP trigger endpoint approach instead.
-  console.log('[Cron] Background cron jobs disabled (running in Serverless mode). Use /api/webhook/cron/trigger-pushes instead.');
+  console.log('[Cron] Reloading cron jobs is not needed. Using minutely ping.');
 }
 
 export async function initializeCronJobs() {
-  await reloadCronJobs();
+  console.log('[Cron] Starting minutely background cron job for scheduled pushes...');
+  cron.schedule('* * * * *', async () => {
+    await triggerScheduledPushes().catch(console.error);
+  });
 }
 
 /**
