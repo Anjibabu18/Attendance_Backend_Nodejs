@@ -51,7 +51,7 @@ export async function removeAllSubscriptions(userId: number) {
   });
 }
 
-export async function sendPushToUser(userId: number, payload: { title: string; body: string; icon?: string; url?: string }) {
+export async function sendPushToUser(userId: number, payload: { title: string; body: string; icon?: string; url?: string; data?: any }) {
   const subs = await prisma.pushSubscription.findMany({ where: { userId } });
   const jsonPayload = JSON.stringify(payload);
 

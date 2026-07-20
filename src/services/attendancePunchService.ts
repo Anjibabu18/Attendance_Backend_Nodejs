@@ -225,9 +225,10 @@ export const checkOut = async (
 
   const now = new Date();
   
-  // Determine Status: < 8 hours = HALF_DAY, >= 8 hours = PRESENT
+  // Determine Status: < 4 hours = ABSENT, 4 to 8 hours = HALF_DAY, >= 8 hours = PRESENT
   const workedMinutes = Math.floor((now.getTime() - existing.inTime.getTime()) / 60000);
   const FULL_DAY_MINUTES = 480; // 8 hours
+  const HALF_DAY_MINUTES = 240; // 4 hours
 
   let newStatus: any;
   let overtimeMinutes = 0;
@@ -235,8 +236,11 @@ export const checkOut = async (
   if (workedMinutes >= FULL_DAY_MINUTES) {
     newStatus = 'PRESENT';
     overtimeMinutes = workedMinutes - FULL_DAY_MINUTES; // Minutes beyond 8h
-  } else {
+  } else if (workedMinutes >= HALF_DAY_MINUTES) {
     newStatus = 'HALF_DAY';
+    overtimeMinutes = 0;
+  } else {
+    newStatus = 'ABSENT';
     overtimeMinutes = 0;
   }
 
