@@ -173,7 +173,7 @@ export const checkIn = async (
   } catch (err) { console.error("Fraud detection error", err); }
 
   // Notify employee of successful check-in
-  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
   notify(employee.userId, '✅ Punched In', `You checked in at ${timeStr}. Have a great day!`).catch(() => {});
 
   return entry;
@@ -300,7 +300,7 @@ export const checkOut = async (
   // Notify employee of successful check-out with status details
   const hrs = Math.floor(workedMinutes / 60);
   const mins = workedMinutes % 60;
-  const outTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const outTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
 
   let notifMessage = `You checked out at ${outTimeStr}. Today's work: ${hrs}h ${mins}m.`;
   if (newStatus === 'HALF_DAY') {
