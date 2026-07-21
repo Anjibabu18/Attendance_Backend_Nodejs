@@ -8,9 +8,9 @@ export const getEmployeeProfile = async (userId: number) => {
     where: { userId },
     include: {
       assignedOfficeLocation: true,
-      // department: true,
-      // companyRole: true,
-      // shift: true
+      department: true,
+      companyRole: true,
+      shift: true
     }
   });
 
@@ -26,6 +26,9 @@ export const getEmployeeProfile = async (userId: number) => {
     profilePhotoUrl: employee.profilePhotoUrl,
     faceRegistered: Boolean(employee.faceDescriptor),
     assignedOfficeLocation: employee.assignedOfficeLocation,
+    department: employee.department,
+    companyRole: employee.companyRole,
+    shift: employee.shift,
     // Add other fields as they become available in Prisma
   };
 };
