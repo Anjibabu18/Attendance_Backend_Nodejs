@@ -65,10 +65,16 @@ async function testPush(req, res) {
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
         await (0, pushService_1.sendPushToUser)(userId, {
-            title: 'Test Notification',
-            body: 'Push notifications are working. You will receive punch-in and punch-out reminders.',
-            icon: '/favicon.ico',
+            title: '✨ Push is Working!',
+            body: 'You are now ready to receive real-time attendance and schedule alerts.',
+            icon: 'https://attendance-two-smoky.vercel.app/pwa-192x192.png',
             url: '/employee',
+            data: {
+                requireInteraction: true,
+                actions: [
+                    { action: 'open', title: '🚀 Let\'s Go!' }
+                ]
+            }
         });
         res.json({ ok: true, message: 'Test notification sent' });
     }

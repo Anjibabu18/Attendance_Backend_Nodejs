@@ -33,7 +33,7 @@ exports.pushToSseClients = pushToSseClients;
 const notify = async (userId, title, message) => {
     if (!userId)
         return null;
-    const dbNotification = await prisma_1.default.notification.create({ data: { userId, title, message } });
+    const dbNotification = await prisma_1.default.notification.create({ data: { userId, title, message, read_flag: false } });
     (0, exports.pushToSseClients)(userId, dbNotification);
     try {
         await (0, pushService_1.sendPushToUser)(userId, {

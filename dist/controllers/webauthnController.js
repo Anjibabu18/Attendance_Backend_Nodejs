@@ -7,7 +7,7 @@ exports.verifyAuthentication = exports.generateAuthentication = exports.verifyRe
 const prisma_1 = __importDefault(require("../prisma"));
 const server_1 = require("@simplewebauthn/server");
 const jwt_1 = require("../utils/jwt");
-const PRODUCTION_FRONTEND_URL = 'https://attendance-two-smoky.vercel.app';
+const PRODUCTION_FRONTEND_URL = 'https://attendance.anushatechnologies.com';
 const normalizeOrigin = (value) => {
     if (!value)
         return null;
@@ -19,13 +19,10 @@ const normalizeOrigin = (value) => {
     }
 };
 const deriveRpId = () => {
-    if (process.env.WEBAUTHN_RP_ID)
-        return process.env.WEBAUTHN_RP_ID;
-    const origin = normalizeOrigin(process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || PRODUCTION_FRONTEND_URL);
-    return origin ? new URL(origin).hostname : 'localhost';
+    return 'attendance.anushatechnologies.com';
 };
 const RP_ID = deriveRpId();
-const ORIGIN = normalizeOrigin(process.env.WEBAUTHN_ORIGIN || process.env.FRONTEND_URL || PRODUCTION_FRONTEND_URL) || 'http://localhost:5173';
+const ORIGIN = 'https://attendance.anushatechnologies.com';
 const ALLOWED_ORIGINS = Array.from(new Set([
     ORIGIN,
     normalizeOrigin(process.env.FRONTEND_URL),

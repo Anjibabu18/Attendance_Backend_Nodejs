@@ -72,6 +72,7 @@ const settingsView = (settings) => ({
     requireQrForPunch: settings?.requireQrForPunch ?? false,
     permanentOfficeQr: settings?.permanentOfficeQr ?? false,
     qrTokenValidityMinutes: settings?.qrTokenValidityMinutes ?? 10080,
+    autoAbsentCutoffTime: settings?.autoAbsentCutoffTime ? timeString(settings.autoAbsentCutoffTime, '') : null,
 });
 const listDepartments = async (req, res) => {
     try {
@@ -460,6 +461,7 @@ const saveAttendanceSettings = async (req, res) => {
             requireQrForPunch: Boolean(req.body.requireQrForPunch),
             permanentOfficeQr: Boolean(req.body.permanentOfficeQr),
             qrTokenValidityMinutes: Number(req.body.qrTokenValidityMinutes ?? 10080),
+            autoAbsentCutoffTime: req.body.autoAbsentCutoffTime ? timeDate(req.body.autoAbsentCutoffTime) : null,
         };
         const existing = await prisma_1.default.attendanceSettings.findFirst();
         const saved = existing ? await prisma_1.default.attendanceSettings.update({ where: { id: existing.id }, data }) : await prisma_1.default.attendanceSettings.create({ data });

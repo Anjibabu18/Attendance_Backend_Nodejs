@@ -62,7 +62,8 @@ const isAllowedOrigin = (origin) => {
     if (allowedOrigins.length === 0 || allowedOrigins.includes(normalized))
         return true;
     return /^https:\/\/attendance-two-smoky\.vercel\.app$/.test(normalized)
-        || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(normalized);
+        || /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(normalized)
+        || normalized === 'https://attendance.anushatechnologies.com';
 };
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
@@ -93,6 +94,9 @@ app.get('/api/version', (req, res) => {
             officeQr: '/api/admin/production/qr',
         },
     });
+});
+app.get('/api/company', async (req, res) => {
+    res.json({ name: 'Anusha Technologies', logoUrl: '/vd-logo.png' });
 });
 // Test DB connection endpoint
 app.get('/api/db-test', async (req, res) => {

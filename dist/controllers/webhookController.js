@@ -47,8 +47,11 @@ exports.biometricPunch = biometricPunch;
 const cronService_1 = require("../services/cronService");
 const triggerScheduledPushesEndpoint = async (req, res) => {
     try {
+        // Vercel Serverless Functions cache GET requests by default if no headers are set.
+        // We MUST prevent caching so the trigger actually executes every minute!
+        res.setHeader('Cache-Control', 'no-store, max-age=0');
         const result = await (0, cronService_1.triggerScheduledPushes)();
-        return res.json(result);
+        return res.json(result || { success: true });
     }
     catch (error) {
         console.error('Cron trigger error:', error);
