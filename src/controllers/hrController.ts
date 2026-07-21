@@ -26,6 +26,8 @@ export const listEmployees = async (req: AuthRequest, res: Response) => {
       shift: e.shift,
       enabled: e.user?.enabled,
       username: e.user?.username,
+      profilePhotoUrl: e.profilePhotoUrl,
+      companyRole: e.companyRole,
     })));
   } catch (error: any) {
     res.status(400).json({ error: error.message });
